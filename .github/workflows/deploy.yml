@@ -30,16 +30,17 @@ jobs:
             docker compose build
             docker compose up -d
 
-            # Wait for API health
+            # Wait for API container healthcheck status
             echo "Waiting for API to be healthy..."
             for i in $(seq 1 30); do
-              if curl -sf http://localhost:8080/api/actuator/health > /dev/null 2>&1; then
+              status=$(docker inspect --format '{{.State.Health.Status}}' devpulse-api 2>/dev/null || echo "unknown")
+              if [ "$status" = "healthy" ]; then
                 echo "API is healthy!"
                 break
               fi
-              if [ $i -eq 30 ]; then
-                echo "API health check timed out"
-                docker compose logs api --tail=50
+              if [ "$status" = "unhealthy" ] || [ $i -eq 30 ]; then
+                echo "API health check timed out (status: $status)"
+                docker compose logs api --tail=100
                 exit 1
               fi
               sleep 5
