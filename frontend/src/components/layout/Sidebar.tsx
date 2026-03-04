@@ -63,10 +63,10 @@ export function Sidebar() {
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-accent-green" />
-          <span className="text-xs text-text-muted">데모 모드</span>
+          <div className="h-2 w-2 rounded-full bg-accent-green animate-pulse" />
+          <span className="text-xs text-text-muted">Live</span>
         </div>
-        <p className="mt-1 text-xs text-text-subtle">2026-03-04 스냅샷</p>
+        <p className="mt-1 text-xs text-text-subtle">실시간 데이터</p>
       </div>
     </aside>
   )

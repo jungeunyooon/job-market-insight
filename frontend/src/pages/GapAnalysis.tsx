@@ -5,8 +5,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from 'recharts'
 import { Badge } from '@/components/ui/Badge'
+import { LoadingState } from '@/components/ui/LoadingState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
-import { GAP_ANALYSIS_DATA, type GapItem, POSITION_LABELS, type PositionType } from '@/data/demo'
+import { useApi } from '@/hooks/useApi'
+import { analyzeGap } from '@/api/endpoints'
+import { POSITION_LABELS, type PositionType, type SkillGap, type UserSkill } from '@/api/types'
 
 const PRIORITY_ORDER = ['CRITICAL', 'HIGH', 'CONTINUE', 'MEDIUM', 'MAINTAINED', 'LOW'] as const
 const PRIORITY_COLORS: Record<string, string> = {
@@ -24,33 +28,56 @@ const STATUS_LABELS: Record<string, string> = {
   NOT_OWNED: '미보유',
 }
 
+// Default skills for demo/initial state
+const DEFAULT_SKILLS: UserSkill[] = [
+  { name: 'Java', status: 'OWNED' },
+  { name: 'Spring Boot', status: 'OWNED' },
+  { name: 'Docker', status: 'OWNED' },
+  { name: 'MySQL', status: 'OWNED' },
+  { name: 'PostgreSQL', status: 'OWNED' },
+  { name: 'JPA', status: 'OWNED' },
+  { name: 'Git', status: 'OWNED' },
+  { name: 'AWS', status: 'LEARNING' },
+  { name: 'Kubernetes', status: 'LEARNING' },
+  { name: 'Linux', status: 'LEARNING' },
+  { name: 'Kafka', status: 'NOT_OWNED' },
+  { name: 'Redis', status: 'NOT_OWNED' },
+  { name: 'Kotlin', status: 'NOT_OWNED' },
+  { name: 'Elasticsearch', status: 'NOT_OWNED' },
+  { name: 'MongoDB', status: 'NOT_OWNED' },
+]
+
 export function GapAnalysis() {
   const [position, setPosition] = useState<PositionType>('BACKEND')
+  const [mySkills] = useState<UserSkill[]>(DEFAULT_SKILLS)
   const chart = useChartStyles()
-  const gaps = GAP_ANALYSIS_DATA
 
-  const matchPercentage = useMemo(() => {
-    const owned = gaps.filter((g: GapItem) => g.userStatus === 'OWNED').length
-    return Math.round((owned / gaps.length) * 100)
-  }, [gaps])
+  const { data, loading, error, refetch } = useApi(
+    () => analyzeGap({ mySkills }, position),
+    [position, mySkills],
+  )
+
+  if (loading) return <LoadingState />
+  if (error || !data) return <ErrorState message={error || '데이터를 불러올 수 없습니다'} onRetry={refetch} />
+
+  const gaps = data.gaps
+  const matchPercentage = data.matchPercentage
 
   const radialData = [{ name: '매칭률', value: matchPercentage, fill: chart.accentBlue }]
 
   const groupedGaps = useMemo(() => {
-    const groups: Record<string, GapItem[]> = {}
+    const groups: Record<string, SkillGap[]> = {}
     PRIORITY_ORDER.forEach((p) => {
-      const items = gaps.filter((g: GapItem) => g.priority === p)
+      const items = gaps.filter((g) => g.priority === p)
       if (items.length > 0) groups[p] = items
     })
     return groups
   }, [gaps])
 
-  const barData = gaps
-    .slice(0, 10)
-    .map((g: GapItem) => ({
-      ...g,
-      color: PRIORITY_COLORS[g.priority],
-    }))
+  const barData = gaps.slice(0, 10).map((g) => ({
+    ...g,
+    color: PRIORITY_COLORS[g.priority] || '#888',
+  }))
 
   return (
     <motion.div
@@ -112,19 +139,19 @@ export function GapAnalysis() {
           <div className="mt-4 flex gap-4 text-sm">
             <div className="text-center">
               <div className="font-mono text-lg font-bold text-accent-green">
-                {gaps.filter((g: GapItem) => g.userStatus === 'OWNED').length}
+                {gaps.filter((g) => g.userStatus === 'OWNED').length}
               </div>
               <div className="text-xs text-text-muted">보유</div>
             </div>
             <div className="text-center">
               <div className="font-mono text-lg font-bold text-accent-blue">
-                {gaps.filter((g: GapItem) => g.userStatus === 'LEARNING').length}
+                {gaps.filter((g) => g.userStatus === 'LEARNING').length}
               </div>
               <div className="text-xs text-text-muted">학습 중</div>
             </div>
             <div className="text-center">
               <div className="font-mono text-lg font-bold text-accent-red">
-                {gaps.filter((g: GapItem) => g.userStatus === 'NOT_OWNED').length}
+                {gaps.filter((g) => g.userStatus === 'NOT_OWNED').length}
               </div>
               <div className="text-xs text-text-muted">미보유</div>
             </div>
@@ -137,17 +164,9 @@ export function GapAnalysis() {
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={barData} layout="vertical" margin={{ left: 90, right: 30, top: 5, bottom: 5 }}>
               <CartesianGrid {...chart.gridProps} />
-              <XAxis
-                type="number"
-                domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
-                {...chart.xAxisProps}
-              />
+              <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} {...chart.xAxisProps} />
               <YAxis type="category" dataKey="skill" width={90} {...chart.yAxisProps} />
-              <Tooltip
-                contentStyle={chart.tooltipStyle}
-                formatter={(value: number | undefined) => [`${value ?? 0}%`, '시장 수요']}
-              />
+              <Tooltip contentStyle={chart.tooltipStyle} formatter={(value: number | undefined) => [`${value ?? 0}%`, '시장 수요']} />
               <Bar dataKey="marketPercentage" radius={[0, 6, 6, 0]} animationDuration={800}>
                 {barData.map((entry, idx) => (
                   <Cell key={idx} fill={entry.color} />
@@ -172,19 +191,17 @@ export function GapAnalysis() {
                 <div key={item.skill} className="flex items-center px-5 py-3 transition-colors hover:bg-bg-elevated">
                   <span className="w-32 font-mono text-sm font-medium">{item.skill}</span>
                   <Badge variant={item.userStatus === 'OWNED' ? 'maintained' : item.userStatus === 'LEARNING' ? 'continue' : 'high'}>
-                    {STATUS_LABELS[item.userStatus]}
+                    {STATUS_LABELS[item.userStatus] || item.userStatus}
                   </Badge>
                   <div className="ml-auto flex items-center gap-6 text-sm">
-                    <span className="text-text-muted">
-                      #{item.marketRank}
-                    </span>
+                    <span className="text-text-muted">#{item.marketRank}</span>
                     <div className="flex items-center gap-2">
                       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-bg-elevated">
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
                             width: `${item.marketPercentage}%`,
-                            backgroundColor: PRIORITY_COLORS[item.priority],
+                            backgroundColor: PRIORITY_COLORS[item.priority] || '#888',
                           }}
                         />
                       </div>

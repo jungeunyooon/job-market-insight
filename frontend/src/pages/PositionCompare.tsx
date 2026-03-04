@@ -4,8 +4,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
 } from 'recharts'
+import { LoadingState } from '@/components/ui/LoadingState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
-import { SKILL_RANKINGS, POSITION_LABELS, type PositionType } from '@/data/demo'
+import { useApi } from '@/hooks/useApi'
+import { getPositionComparison } from '@/api/endpoints'
+import { POSITION_LABELS, type PositionType } from '@/api/types'
 
 const POSITION_COLORS: Record<string, string> = {
   BACKEND: '#4e79a7',
@@ -18,41 +22,31 @@ export function PositionCompare() {
   const [viewMode, setViewMode] = useState<'bar' | 'radar'>('bar')
   const chart = useChartStyles()
 
+  const { data, loading, error, refetch } = useApi(
+    () => selected.length >= 2 ? getPositionComparison(selected, 10) : Promise.resolve(null),
+    [selected.join(',')],
+  )
+
   const togglePosition = (pos: PositionType) => {
     setSelected((prev) =>
       prev.includes(pos) ? prev.filter((p) => p !== pos) : [...prev, pos]
     )
   }
 
-  // Merge all skills from selected positions
-  const allSkills = new Set<string>()
-  selected.forEach((pos) => {
-    SKILL_RANKINGS[pos].rankings.slice(0, 10).forEach((r) => allSkills.add(r.skill))
-  })
-
-  const mergedData = Array.from(allSkills).map((skill) => {
-    const row: Record<string, string | number> = { skill }
-    selected.forEach((pos) => {
-      const found = SKILL_RANKINGS[pos].rankings.find((r) => r.skill === skill)
-      row[pos] = found?.percentage || 0
+  // Build merged chart data from API response
+  const mergedData = (() => {
+    if (!data?.positions) return []
+    const allSkills = new Set<string>()
+    data.positions.forEach((p) => p.topSkills.forEach((s) => allSkills.add(s.skill)))
+    return Array.from(allSkills).map((skill) => {
+      const row: Record<string, string | number> = { skill }
+      data.positions.forEach((p) => {
+        const found = p.topSkills.find((s) => s.skill === skill)
+        row[p.positionType] = found?.percentage || 0
+      })
+      return row
     })
-    return row
-  })
-
-  // Common and unique skills
-  const skillSets: Record<string, Set<string>> = {}
-  selected.forEach((pos) => {
-    skillSets[pos] = new Set(SKILL_RANKINGS[pos].rankings.slice(0, 10).map((r) => r.skill))
-  })
-  const commonSkills = selected.length >= 2
-    ? [...Object.values(skillSets).reduce((a, b) => new Set([...a].filter((x) => b.has(x))))]
-    : []
-  const uniqueSkills: Record<string, string[]> = {}
-  selected.forEach((pos) => {
-    const others = new Set<string>()
-    selected.filter((p) => p !== pos).forEach((p) => skillSets[p]?.forEach((s) => others.add(s)))
-    uniqueSkills[pos] = [...(skillSets[pos] || [])].filter((s) => !others.has(s))
-  })
+  })()
 
   return (
     <motion.div
@@ -105,7 +99,11 @@ export function PositionCompare() {
         <div className="rounded-xl border border-border-default bg-bg-surface p-12 text-center text-text-muted">
           2개 이상의 포지션을 선택하세요
         </div>
-      ) : (
+      ) : loading ? (
+        <LoadingState />
+      ) : error ? (
+        <ErrorState message={error} onRetry={refetch} />
+      ) : data ? (
         <>
           {/* Chart */}
           <div className="rounded-xl border border-border-default bg-bg-surface p-6">
@@ -113,12 +111,7 @@ export function PositionCompare() {
               <ResponsiveContainer width="100%" height={500}>
                 <BarChart data={mergedData} layout="vertical" margin={{ left: 90, right: 30, top: 10, bottom: 10 }}>
                   <CartesianGrid {...chart.gridProps} />
-                  <XAxis
-                    type="number"
-                    domain={[0, 100]}
-                    tickFormatter={(v) => `${v}%`}
-                    {...chart.xAxisProps}
-                  />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} {...chart.xAxisProps} />
                   <YAxis type="category" dataKey="skill" width={90} {...chart.yAxisProps} />
                   <Tooltip
                     contentStyle={chart.tooltipStyle}
@@ -126,13 +119,7 @@ export function PositionCompare() {
                   />
                   <Legend formatter={(value) => POSITION_LABELS[value] || value} />
                   {selected.map((pos) => (
-                    <Bar
-                      key={pos}
-                      dataKey={pos}
-                      fill={POSITION_COLORS[pos]}
-                      radius={[0, 4, 4, 0]}
-                      animationDuration={800}
-                    />
+                    <Bar key={pos} dataKey={pos} fill={POSITION_COLORS[pos]} radius={[0, 4, 4, 0]} animationDuration={800} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -140,25 +127,10 @@ export function PositionCompare() {
               <ResponsiveContainer width="100%" height={500}>
                 <RadarChart data={mergedData}>
                   <PolarGrid stroke={chart.axisStroke} />
-                  <PolarAngleAxis
-                    dataKey="skill"
-                    tick={{ fill: chart.axisLabel, fontSize: 11, fontFamily: 'JetBrains Mono' }}
-                  />
-                  <PolarRadiusAxis
-                    angle={30}
-                    domain={[0, 100]}
-                    tick={{ fill: chart.axisTick, fontSize: 10 }}
-                  />
+                  <PolarAngleAxis dataKey="skill" tick={{ fill: chart.axisLabel, fontSize: 11, fontFamily: 'JetBrains Mono' }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: chart.axisTick, fontSize: 10 }} />
                   {selected.map((pos) => (
-                    <Radar
-                      key={pos}
-                      name={POSITION_LABELS[pos]}
-                      dataKey={pos}
-                      stroke={POSITION_COLORS[pos]}
-                      fill={POSITION_COLORS[pos]}
-                      fillOpacity={0.15}
-                      animationDuration={800}
-                    />
+                    <Radar key={pos} name={POSITION_LABELS[pos]} dataKey={pos} stroke={POSITION_COLORS[pos]} fill={POSITION_COLORS[pos]} fillOpacity={0.15} animationDuration={800} />
                   ))}
                   <Legend formatter={(value) => value} />
                   <Tooltip contentStyle={chart.tooltipStyle} />
@@ -172,12 +144,12 @@ export function PositionCompare() {
             <div className="rounded-xl border border-border-default bg-bg-surface p-6">
               <h3 className="mb-3 text-lg font-semibold">공통 스킬</h3>
               <div className="flex flex-wrap gap-2">
-                {commonSkills.map((skill) => (
+                {data.commonSkills.map((skill) => (
                   <span key={skill} className="rounded-md border border-accent-blue/30 bg-accent-blue/10 px-3 py-1 font-mono text-sm text-accent-blue">
                     {skill}
                   </span>
                 ))}
-                {commonSkills.length === 0 && <p className="text-sm text-text-muted">공통 스킬이 없습니다</p>}
+                {data.commonSkills.length === 0 && <p className="text-sm text-text-muted">공통 스킬이 없습니다</p>}
               </div>
             </div>
             <div className="rounded-xl border border-border-default bg-bg-surface p-6">
@@ -189,12 +161,12 @@ export function PositionCompare() {
                       {POSITION_LABELS[pos]}
                     </span>
                     <div className="mt-1 flex flex-wrap gap-1.5">
-                      {(uniqueSkills[pos] || []).map((skill) => (
+                      {(data.uniqueSkills[pos] || []).map((skill) => (
                         <span key={skill} className="rounded-md border border-border-default bg-bg-elevated px-2 py-0.5 font-mono text-xs text-text-primary">
                           {skill}
                         </span>
                       ))}
-                      {(uniqueSkills[pos] || []).length === 0 && (
+                      {(data.uniqueSkills[pos] || []).length === 0 && (
                         <span className="text-xs text-text-subtle">없음</span>
                       )}
                     </div>
@@ -204,7 +176,7 @@ export function PositionCompare() {
             </div>
           </div>
         </>
-      )}
+      ) : null}
     </motion.div>
   )
 }

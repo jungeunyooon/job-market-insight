@@ -7,15 +7,35 @@ import {
 import { Building2 } from 'lucide-react'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { Badge } from '@/components/ui/Badge'
+import { LoadingState } from '@/components/ui/LoadingState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
-import { COMPANY_PROFILES, CATEGORY_LABELS, POSITION_LABELS } from '@/data/demo'
+import { useApi } from '@/hooks/useApi'
+import { getCompanyProfile } from '@/api/endpoints'
+import { CATEGORY_LABELS, POSITION_LABELS } from '@/api/types'
+
+const KNOWN_COMPANIES = [
+  { id: 1, name: '네이버' },
+  { id: 2, name: '쿠팡' },
+  { id: 3, name: '카카오' },
+  { id: 4, name: '토스' },
+  { id: 5, name: '배달의민족' },
+  { id: 6, name: '당근' },
+]
 
 const PIE_COLORS = ['#4e79a7', '#f28e2b', '#76b7b2', '#e15759', '#59a14f']
 
 export function CompanyProfile() {
-  const [selectedIdx, setSelectedIdx] = useState(0)
+  const [selectedId, setSelectedId] = useState(1)
   const chart = useChartStyles()
-  const company = COMPANY_PROFILES[selectedIdx]
+
+  const { data: company, loading, error, refetch } = useApi(
+    () => getCompanyProfile(selectedId),
+    [selectedId],
+  )
+
+  if (loading) return <LoadingState />
+  if (error || !company) return <ErrorState message={error || '데이터를 불러올 수 없습니다'} onRetry={refetch} />
 
   const pieData = Object.entries(company.positionBreakdown).map(([key, value]) => ({
     name: POSITION_LABELS[key] || key,
@@ -39,17 +59,17 @@ export function CompanyProfile() {
 
       {/* Company selector */}
       <div className="mb-6 flex flex-wrap gap-2">
-        {COMPANY_PROFILES.map((c, idx) => (
+        {KNOWN_COMPANIES.map((c) => (
           <button
-            key={c.companyId}
-            onClick={() => setSelectedIdx(idx)}
+            key={c.id}
+            onClick={() => setSelectedId(c.id)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              selectedIdx === idx
+              selectedId === c.id
                 ? 'bg-accent-blue text-white'
                 : 'bg-bg-surface text-text-muted hover:bg-bg-elevated hover:text-text-primary'
             }`}
           >
-            {c.companyName}
+            {c.name}
           </button>
         ))}
       </div>

@@ -3,18 +3,29 @@ import { motion } from 'framer-motion'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import { KpiCard } from '@/components/ui/KpiCard'
+import { LoadingState } from '@/components/ui/LoadingState'
+import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
-import { SKILL_RANKINGS, POSITION_LABELS, type PositionType } from '@/data/demo'
+import { useApi } from '@/hooks/useApi'
+import { getSkillRanking } from '@/api/endpoints'
+import { POSITION_LABELS, type PositionType } from '@/api/types'
 
 export function SkillRanking() {
   const [position, setPosition] = useState<PositionType>('BACKEND')
   const [topN, setTopN] = useState(15)
   const chart = useChartStyles()
 
-  const data = SKILL_RANKINGS[position]
-  const rankings = data.rankings.slice(0, topN)
+  const { data, loading, error, refetch } = useApi(
+    () => getSkillRanking({ positionType: position, topN }),
+    [position, topN],
+  )
+
+  if (loading) return <LoadingState />
+  if (error || !data) return <ErrorState message={error || '데이터를 불러올 수 없습니다'} onRetry={refetch} />
+
+  const rankings = data.rankings
   const chartData = [...rankings].reverse()
 
   return (
@@ -32,7 +43,7 @@ export function SkillRanking() {
 
       {/* KPI Cards */}
       <div className="mb-6 grid grid-cols-4 gap-4">
-        <KpiCard label="총 공고 수" value={data.totalPostings.toLocaleString()} delta={12.3} deltaLabel="vs 지난달" icon={<BarChart3 className="h-5 w-5" />} />
+        <KpiCard label="총 공고 수" value={data.totalPostings.toLocaleString()} icon={<BarChart3 className="h-5 w-5" />} />
         <KpiCard label="분석 스킬 수" value={rankings.length} />
         <KpiCard label="Top 1 스킬" value={rankings[0]?.skill || '-'} />
         <KpiCard label="스냅샷 날짜" value={data.snapshotDate} />
@@ -104,7 +115,6 @@ export function SkillRanking() {
               <th className="px-4 py-3 text-right font-medium">공고 수</th>
               <th className="px-4 py-3 text-right font-medium">출현율</th>
               <th className="px-4 py-3 text-right font-medium">필수 비율</th>
-              <th className="px-4 py-3 text-center font-medium">변동</th>
             </tr>
           </thead>
           <tbody>
@@ -115,16 +125,6 @@ export function SkillRanking() {
                 <td className="px-4 py-3 text-right font-mono">{r.count}</td>
                 <td className="px-4 py-3 text-right font-mono">{r.percentage}%</td>
                 <td className="px-4 py-3 text-right font-mono">{(r.requiredRatio * 100).toFixed(0)}%</td>
-                <td className="px-4 py-3 text-center">
-                  {r.change !== undefined && r.change !== 0 ? (
-                    <span className={`inline-flex items-center gap-0.5 text-xs ${r.change > 0 ? 'text-accent-green' : 'text-accent-red'}`}>
-                      {r.change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {Math.abs(r.change)}
-                    </span>
-                  ) : (
-                    <Minus className="mx-auto h-3 w-3 text-text-subtle" />
-                  )}
-                </td>
               </tr>
             ))}
           </tbody>
