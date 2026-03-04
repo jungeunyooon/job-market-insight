@@ -6,8 +6,10 @@ import com.devpulse.trend.TrendSource;
 import com.devpulse.trend.BuzzHiringGapService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "트렌드", description = "기술 트렌드 랭킹 및 Buzz vs 채용 분석 API")
 @RestController
 @RequestMapping("/api/v1/analysis")
 @RequiredArgsConstructor

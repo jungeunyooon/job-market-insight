@@ -6,8 +6,10 @@ import com.devpulse.blog.YearlyTrendResponse;
 import com.devpulse.blog.BlogTopicTrendService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "블로그 토픽", description = "기업 기술 블로그 토픽 분석 API")
 @RestController
 @RequestMapping("/api/v1/analysis/blog-topics")
 @RequiredArgsConstructor
