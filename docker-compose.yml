@@ -56,6 +56,24 @@ services:
       - "traefik.http.services.devpulse-fe.loadbalancer.server.port=80"
       - "traefik.docker.network=traefik"
 
+  batch:
+    build:
+      context: .
+      dockerfile: batch/Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: devpulse
+      DB_USER: devpulse
+      DB_PASSWORD: devpulse1234
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - devpulse
+    profiles:
+      - batch
+
 networks:
   traefik:
     external: true
