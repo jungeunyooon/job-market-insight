@@ -28,6 +28,7 @@ public class Company {
     private String nameEn;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "company_category")
     private CompanyCategory category;
 

@@ -35,6 +35,7 @@ public class Skill {
     private List<String> aliases;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "source_scope", nullable = false, columnDefinition = "skill_source_scope")
     private SkillSourceScope sourceScope;
 

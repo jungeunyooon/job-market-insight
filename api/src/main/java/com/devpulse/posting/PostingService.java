@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 @Service
@@ -31,17 +32,31 @@ public class PostingService {
             LocalDate dateTo,
             Pageable pageable
     ) {
-        LocalDateTime from = dateFrom != null ? dateFrom.atStartOfDay() : null;
-        LocalDateTime to = dateTo != null ? dateTo.atTime(23, 59, 59) : null;
+        boolean hasPosition = positionType != null;
+        PositionType resolvedPositionType = hasPosition ? positionType : PositionType.BACKEND;
+
+        List<PostingStatus> resolvedStatuses = (statuses == null || statuses.isEmpty())
+                ? Arrays.asList(PostingStatus.values())
+                : statuses;
+        List<CompanyCategory> resolvedCategories = (categories == null || categories.isEmpty())
+                ? Arrays.asList(CompanyCategory.values())
+                : categories;
+
+        boolean hasDateFrom = dateFrom != null;
+        boolean hasDateTo = dateTo != null;
+        LocalDateTime from = hasDateFrom ? dateFrom.atStartOfDay() : LocalDateTime.of(1970, 1, 1, 0, 0);
+        LocalDateTime to = hasDateTo ? dateTo.atTime(23, 59, 59) : LocalDateTime.of(9999, 12, 31, 23, 59, 59);
 
         Page<JobPosting> postings;
         if (skillNames != null && !skillNames.isEmpty()) {
             postings = jobPostingRepository.findByFiltersWithSkills(
-                    positionType, statuses, categories, skillNames, from, to, pageable
+                    hasPosition, resolvedPositionType, resolvedStatuses, resolvedCategories,
+                    skillNames, hasDateFrom, from, hasDateTo, to, pageable
             );
         } else {
             postings = jobPostingRepository.findByFiltersExtended(
-                    positionType, statuses, categories, from, to, pageable
+                    hasPosition, resolvedPositionType, resolvedStatuses, resolvedCategories,
+                    hasDateFrom, from, hasDateTo, to, pageable
             );
         }
 

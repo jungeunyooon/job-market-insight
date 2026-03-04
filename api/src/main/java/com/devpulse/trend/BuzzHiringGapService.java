@@ -5,7 +5,9 @@ import com.devpulse.trend.BuzzHiringGapResponse.BuzzHiringGap;
 import com.devpulse.trend.BuzzHiringGapResponse.Classification;
 import com.devpulse.trend.TrendRankingResponse;
 import com.devpulse.trend.TrendRankingResponse.TrendRankItem;
+import com.devpulse.company.CompanyCategory;
 import com.devpulse.posting.PostingSkillRepository;
+import com.devpulse.posting.PostingStatus;
 import com.devpulse.posting.PositionType;
 import com.devpulse.trend.TrendSkillRepository;
 import com.devpulse.trend.TrendSource;
@@ -63,8 +65,12 @@ public class BuzzHiringGapService {
         long totalTrendPosts = trendSkillRepository.countTrendPostsSince(since);
 
         // 2. Job posting skill mentions (ACTIVE postings, all positions)
-        List<Object[]> jobRows = postingSkillRepository.findSkillRankingWithFilters(null, false, null);
-        long totalJobPostings = postingSkillRepository.countPostingsWithFilters(null, false, null);
+        List<Object[]> jobRows = postingSkillRepository.findSkillRankingWithFilters(
+                false, PositionType.BACKEND, false, PostingStatus.ACTIVE, Arrays.asList(CompanyCategory.values())
+        );
+        long totalJobPostings = postingSkillRepository.countPostingsWithFilters(
+                false, PositionType.BACKEND, false, PostingStatus.ACTIVE, Arrays.asList(CompanyCategory.values())
+        );
 
         // Build maps: skill -> (count, rank)
         Map<String, long[]> trendMap = buildRankMap(trendRows);

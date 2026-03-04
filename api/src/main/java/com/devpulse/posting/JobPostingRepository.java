@@ -36,33 +36,39 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     @Query("SELECT DISTINCT jp FROM JobPosting jp " +
            "JOIN PostingSkill ps ON ps.posting = jp " +
            "JOIN ps.skill s " +
-           "WHERE (:positionType IS NULL OR jp.positionType = :positionType) " +
-           "AND (:statuses IS NULL OR jp.status IN :statuses) " +
-           "AND (:categories IS NULL OR jp.company.category IN :categories) " +
+           "WHERE (:hasPosition = false OR jp.positionType = :positionType) " +
+           "AND jp.status IN :statuses " +
+           "AND jp.company.category IN :categories " +
            "AND s.name IN :skillNames " +
-           "AND (:dateFrom IS NULL OR jp.postedAt >= :dateFrom) " +
-           "AND (:dateTo IS NULL OR jp.postedAt <= :dateTo)")
+           "AND (:hasDateFrom = false OR jp.postedAt >= :dateFrom) " +
+           "AND (:hasDateTo = false OR jp.postedAt <= :dateTo)")
     Page<JobPosting> findByFiltersWithSkills(
+            @Param("hasPosition") boolean hasPosition,
             @Param("positionType") PositionType positionType,
             @Param("statuses") List<PostingStatus> statuses,
             @Param("categories") List<CompanyCategory> categories,
             @Param("skillNames") List<String> skillNames,
+            @Param("hasDateFrom") boolean hasDateFrom,
             @Param("dateFrom") LocalDateTime dateFrom,
+            @Param("hasDateTo") boolean hasDateTo,
             @Param("dateTo") LocalDateTime dateTo,
             Pageable pageable
     );
 
     @Query("SELECT jp FROM JobPosting jp " +
-           "WHERE (:positionType IS NULL OR jp.positionType = :positionType) " +
-           "AND (:statuses IS NULL OR jp.status IN :statuses) " +
-           "AND (:categories IS NULL OR jp.company.category IN :categories) " +
-           "AND (:dateFrom IS NULL OR jp.postedAt >= :dateFrom) " +
-           "AND (:dateTo IS NULL OR jp.postedAt <= :dateTo)")
+           "WHERE (:hasPosition = false OR jp.positionType = :positionType) " +
+           "AND jp.status IN :statuses " +
+           "AND jp.company.category IN :categories " +
+           "AND (:hasDateFrom = false OR jp.postedAt >= :dateFrom) " +
+           "AND (:hasDateTo = false OR jp.postedAt <= :dateTo)")
     Page<JobPosting> findByFiltersExtended(
+            @Param("hasPosition") boolean hasPosition,
             @Param("positionType") PositionType positionType,
             @Param("statuses") List<PostingStatus> statuses,
             @Param("categories") List<CompanyCategory> categories,
+            @Param("hasDateFrom") boolean hasDateFrom,
             @Param("dateFrom") LocalDateTime dateFrom,
+            @Param("hasDateTo") boolean hasDateTo,
             @Param("dateTo") LocalDateTime dateTo,
             Pageable pageable
     );

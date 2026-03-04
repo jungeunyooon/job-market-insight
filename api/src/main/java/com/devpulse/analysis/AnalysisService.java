@@ -29,11 +29,17 @@ public class AnalysisService {
             boolean includeClosedPostings,
             int topN
     ) {
+        boolean hasPosition = positionType != null;
+        PositionType resolvedPositionType = hasPosition ? positionType : PositionType.BACKEND;
+        List<CompanyCategory> resolvedCategories = (categories == null || categories.isEmpty())
+                ? Arrays.asList(CompanyCategory.values())
+                : categories;
+
         List<Object[]> rows = postingSkillRepository.findSkillRankingWithFilters(
-                positionType, includeClosedPostings, categories
+                hasPosition, resolvedPositionType, includeClosedPostings, PostingStatus.ACTIVE, resolvedCategories
         );
         long totalPostings = postingSkillRepository.countPostingsWithFilters(
-                positionType, includeClosedPostings, categories
+                hasPosition, resolvedPositionType, includeClosedPostings, PostingStatus.ACTIVE, resolvedCategories
         );
 
         List<SkillRankItem> rankings = new ArrayList<>();
