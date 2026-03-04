@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+@theme {
+  /* Semantic colors - mapped to CSS variables for runtime theming */
+  --color-bg-base: var(--dp-bg-base);
+  --color-bg-surface: var(--dp-bg-surface);
+  --color-bg-elevated: var(--dp-bg-elevated);
+
+  --color-border-default: var(--dp-border-default);
+  --color-border-muted: var(--dp-border-muted);
+
+  --color-text-primary: var(--dp-text-primary);
+  --color-text-muted: var(--dp-text-muted);
+  --color-text-subtle: var(--dp-text-subtle);
+
+  --color-accent-blue: var(--dp-accent-blue);
+  --color-accent-green: var(--dp-accent-green);
+  --color-accent-amber: var(--dp-accent-amber);
+  --color-accent-red: var(--dp-accent-red);
+  --color-accent-teal: var(--dp-accent-teal);
+  --color-accent-purple: var(--dp-accent-purple);
+
+  /* Chart categorical colors (Observable 10 inspired) */
+  --color-chart-1: var(--dp-chart-1);
+  --color-chart-2: var(--dp-chart-2);
+  --color-chart-3: var(--dp-chart-3);
+  --color-chart-4: var(--dp-chart-4);
+  --color-chart-5: var(--dp-chart-5);
+  --color-chart-6: var(--dp-chart-6);
+  --color-chart-7: var(--dp-chart-7);
+  --color-chart-8: var(--dp-chart-8);
+
+  /* Priority */
+  --color-priority-critical: var(--dp-accent-red);
+  --color-priority-high: var(--dp-accent-amber);
+  --color-priority-medium: #edc948;
+  --color-priority-low: var(--dp-accent-teal);
+  --color-priority-maintained: var(--dp-accent-green);
+
+  /* Fonts */
+  --font-sans: "Pretendard Variable", "Pretendard", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ===== Dark Theme (default) ===== */
+:root {
+  --dp-bg-base: #0d1117;
+  --dp-bg-surface: #161b22;
+  --dp-bg-elevated: #21262d;
+
+  --dp-border-default: #30363d;
+  --dp-border-muted: #21262d;
+
+  --dp-text-primary: #e6edf3;
+  --dp-text-muted: #7d8590;
+  --dp-text-subtle: #484f58;
+
+  --dp-accent-blue: #2f81f7;
+  --dp-accent-green: #3fb950;
+  --dp-accent-amber: #d29922;
+  --dp-accent-red: #f85149;
+  --dp-accent-teal: #39c5cf;
+  --dp-accent-purple: #a371f7;
+
+  --dp-chart-1: #4e79a7;
+  --dp-chart-2: #f28e2b;
+  --dp-chart-3: #e15759;
+  --dp-chart-4: #76b7b2;
+  --dp-chart-5: #59a14f;
+  --dp-chart-6: #edc948;
+  --dp-chart-7: #b07aa1;
+  --dp-chart-8: #ff9da7;
+
+  /* Recharts inline style overrides */
+  --dp-tooltip-bg: #21262d;
+  --dp-tooltip-border: #30363d;
+  --dp-tooltip-text: #e6edf3;
+  --dp-grid-stroke: #21262d;
+  --dp-axis-stroke: #30363d;
+  --dp-axis-tick: #7d8590;
+  --dp-axis-label: #e6edf3;
+
+  color-scheme: dark;
+}
+
+/* ===== Light Theme ===== */
+:root.light {
+  --dp-bg-base: #ffffff;
+  --dp-bg-surface: #f6f8fa;
+  --dp-bg-elevated: #eaeef2;
+
+  --dp-border-default: #d0d7de;
+  --dp-border-muted: #eaeef2;
+
+  --dp-text-primary: #1f2328;
+  --dp-text-muted: #656d76;
+  --dp-text-subtle: #8b949e;
+
+  --dp-accent-blue: #0969da;
+  --dp-accent-green: #1a7f37;
+  --dp-accent-amber: #9a6700;
+  --dp-accent-red: #cf222e;
+  --dp-accent-teal: #0e8a8a;
+  --dp-accent-purple: #8250df;
+
+  --dp-chart-1: #4e79a7;
+  --dp-chart-2: #e8760a;
+  --dp-chart-3: #cf222e;
+  --dp-chart-4: #1a9a8a;
+  --dp-chart-5: #2da44e;
+  --dp-chart-6: #bf8700;
+  --dp-chart-7: #8250df;
+  --dp-chart-8: #e85d75;
+
+  --dp-tooltip-bg: #ffffff;
+  --dp-tooltip-border: #d0d7de;
+  --dp-tooltip-text: #1f2328;
+  --dp-grid-stroke: #eaeef2;
+  --dp-axis-stroke: #d0d7de;
+  --dp-axis-tick: #656d76;
+  --dp-axis-label: #1f2328;
+
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background-color: var(--dp-bg-base);
+  color: var(--dp-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--dp-border-default);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dp-text-subtle);
+}
+
+/* Recharts tooltip override */
+.recharts-default-tooltip {
+  background-color: var(--dp-tooltip-bg) !important;
+  border: 1px solid var(--dp-tooltip-border) !important;
+  border-radius: 8px !important;
+  color: var(--dp-tooltip-text) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}

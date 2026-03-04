@@ -1,0 +1,185 @@
+# DevPulse 개발 로그
+
+> 채용시장 기술 트렌드 분석 서비스 — 구현 기록
+> Repo: `job-market-insight/`
+
+---
+
+## 2026-03-04 | Phase 0 + Phase 1 Week 1 — 프로젝트 스캐폴딩
+
+### 진행 내용
+
+**프로젝트 초기화 완료** — GitHub repo `job-market-insight` 클론 후 전체 스캐폴딩:
+
+1. **CLAUDE.md 작성**: TDD 원칙, Git 워크플로, 코드 컨벤션, 아키텍처 결정사항 문서화
+2. **Docker Compose**: PostgreSQL 16 Alpine + 헬스체크 설정
+3. **Spring Boot 프로젝트 (api/)**:
+   - build.gradle: Spring Boot 3.4.3, Java 21, Spring Data JPA, QueryDSL 5.1, Flyway, Testcontainers
+   - Gradle wrapper 8.12 생성
+   - application.yml + application-test.yml (Testcontainers JDBC URL)
+   - DevPulseApplication.java + contextLoads 테스트
+4. **Flyway 마이그레이션 V1__init_schema.sql**:
+   - 11개 테이블: company, job_posting, skill, posting_skill, tech_blog_post, blog_skill, trend_post, trend_skill, unmatched_company, crawl_log, analysis_snapshot
+   - 8개 ENUM 타입, 인덱스, unique constraints 전부 포함
+   - PRD v3.0 Section 5.1 ERD 완전 반영
+5. **Python 배치 프로젝트 (batch/)**:
+   - BaseCrawler ABC + RawJobPosting 데이터클래스
+   - TrendCrawler ABC + TrendPost 데이터클래스
+   - SkillMatcher: 사전 기반 매칭, 복합 키워드 우선, scope 필터링
+   - PositionNormalizer + CompanyNormalizer
+6. **시드 데이터 (data/)**:
+   - skills_seed.json: 100개 기술 (13 language, 21 framework, 10 database, 4 messaging, 22 devops, 12 concept, 11 ai_ml_model, 12 ai_ml_devtool)
+   - companies_seed.json: 29개 회사 (Big 7 + 자회사 5 + 유니콘 8 + 스타트업 4 + SI 2 + MID 2)
+   - position_aliases.json: BACKEND/PRODUCT/FDE 매핑
+7. **테스트 코드 43개 전부 통과**:
+   - test_skill_matcher.py: 18개 (기본 매칭, 복합 키워드, 중복 제거, 경계 처리, scope 필터링, 엣지 케이스, 시드 파일 로딩)
+   - test_normalizer.py: 25개 (포지션 정규화 14개 + 회사명 정규화 11개)
+8. **Phase 0 검증 파이프라인 구현**:
+   - sample_postings.csv: 20건 샘플 공고 (네카라쿠배당토 + 유니콘 + 스타트업)
+   - phase0_validate.py: CSV → SkillMatcher → pandas 빈도 분석 → Markdown 리포트
+   - 테스트 10개 통과 (CSV 로딩, 스킬 추출, 빈도 분석, 카테고리 분석, 리포트 생성)
+   - **검증 결과**: Java 100%, Spring Boot 95%, Docker 85%, MySQL 80%, Kafka 65% — 직관과 일치
+9. **Spring Boot Entity 클래스 구현**:
+   - Company (JSONB tags/aliases), Skill (source_scope ENUM), JobPosting (영구 보관 생명주기), PostingSkill
+   - Repository 인터페이스: 필터링 쿼리 (카테고리, 포지션, 상태), 스킬 랭킹 집계 쿼리
+10. **원티드 API 크롤러 (WantedAPICrawler)**:
+    - 키워드 검색 → 중복 제거 → 상세 조회 → RawJobPosting 변환
+    - Rate limit (1 req/sec), 429 자동 재시도, 개인정보 마스킹
+    - 테스트 10개 통과 (목록 조회, 상세 조회, 에러 처리, 풀 파이프라인, 크로스 키워드 중복 제거)
+
+### 버그 수정
+- **한글 조사 경계 문제**: `(?<![a-zA-Z가-힣])` → 영어/한글 경계 패턴 분리
+
+### 산출물
+- 테스트 **63개 전부 통과** (normalizer 25 + skill_matcher 18 + phase0 10 + wanted_crawler 10)
+
+---
+
+## 2026-03-04 | Phase 1 Week 2 — Spring Boot REST API + Dashboard
+
+### 진행 내용
+
+11. **DTO Records 생성 (7개)**:
+    - PostingResponse, PostingDetailResponse, SkillRankingResponse, CompanyProfileResponse, PositionComparisonResponse, GapAnalysisRequest, GapAnalysisResponse
+12. **Repository 확장**:
+    - JobPostingRepository: findByFiltersExtended, findByFiltersWithSkills, countByCompanyIdGroupByPositionType
+    - PostingSkillRepository: findSkillRankingWithFilters, countPostingsWithFilters, findPositionBreakdownByCompany
+13. **Service 계층 구현**:
+    - PostingService: findAll (7개 필터 + 페이징), findById
+    - AnalysisService: getSkillRanking, getCompanyProfile, getPositionComparison, analyzeGap
+14. **Controller 구현**:
+    - PostingController: GET /api/v1/postings, GET /api/v1/postings/{id}
+    - AnalysisController: skill-ranking, company-profile/{id}, position-comparison, POST gap
+    - GlobalExceptionHandler: ProblemDetail (RFC 7807)
+15. **테스트 23개 작성 (전부 통과)**:
+    - PostingServiceTest (6), AnalysisServiceTest (7), PostingControllerTest (4), AnalysisControllerTest (6)
+16. **Streamlit 대시보드 (dashboard/)**:
+    - 5개 페이지, 데모 모드, Plotly 차트, 갭 분석 시각화
+
+### 버그 수정
+- **List.of() varargs 모호성**: `List.<Object[]>of(...)` 명시적 타입 힌트
+- **갭 분석 CRITICAL 조건**: 테스트 데이터 40% → 60% 수정
+- **contextLoads Docker**: `@EnabledIf("isDockerAvailable")` 조건부 실행
+
+### 산출물
+- **전체 테스트 86개 통과** (Java 23 + Python 63)
+
+---
+
+## 2026-03-04 | Phase 2 Week 3 — 크롤러 확장 + Trend 분석
+
+### 진행 내용
+
+17. **GeekNews RSS 크롤러 (geeknews.py)**: feedparser, TrendCrawler ABC, 8 tests
+18. **Jumpit 크롤러 (jumpit.py)**: JSON API, BaseCrawler, 9 tests
+19. **TrendPost + TrendSkill JPA Entities**: source ENUM, Repository (기간별 스킬 랭킹)
+20. **BuzzHiringGapService**: 2×2 분류 (OVERHYPED/ADOPTED/ESTABLISHED/EMERGING), 임계값 trend≥5% job≥10%, 6 tests
+21. **TrendController**: trend-ranking, buzz-vs-hiring, 3 MockMvc tests
+
+### 산출물
+- **전체 테스트 112개 통과** (Java 32 + Python 80)
+
+---
+
+## 2026-03-04 | Phase 2 Week 3-4 — 테크 블로그 + BlogTopicTrend API
+
+### 진행 내용
+
+22. **테크 블로그 RSS 크롤러 (tech_blog.py)**:
+    - feedparser 기반, 5개 회사 블로그 (네이버/카카오/배민/당근/쿠팡)
+    - BLOG_CONFIGS 딕셔너리 패턴, 8 tests
+23. **TopicExtractor (topic_extractor.py)**:
+    - SkillMatcher 기반, title > tags > content 우선순위 dedup, 9 tests
+24. **TechBlogPost + BlogSkill JPA Entities**:
+    - TechBlogPostRepository: countByCompanyGroupByYear, countByCompanyId
+    - BlogSkillRepository: findSkillRankingByCompanyAndYear, findYearlySkillTrend, findCompanyDistributionBySkill
+25. **BlogTopicTrendService**: 회사별 토픽, 연도별 트렌드, 스킬별 회사 분포, 7 tests
+26. **BlogTopicController**: 3 GET endpoints, 4 MockMvc tests
+27. **3개 DTO Records**: BlogTopicResponse, YearlyTrendResponse, SkillCompanyDistributionResponse
+28. **GlobalExceptionHandler**: IllegalArgumentException → 400 핸들러 추가
+
+### 버그 수정
+- **GeekNews published_parsed**: `hasattr` → `entry.get()` (dict key)
+- **TopicExtractor dict 접근**: `m["name"]` → `m.skill_name` (MatchedSkill dataclass)
+- **SkillMatcher 리스트 초기화**: isinstance 분기로 list[dict] 직접 전달 지원
+
+### 산출물
+- **전체 테스트 141개 통과** (Java 44 + Python 97)
+
+---
+
+## 2026-03-04 | Phase 2 마무리 — Greenhouse 크롤러 + 리포트 자동 생성
+
+### 진행 내용
+
+29. **Greenhouse Board API 크롤러 (greenhouse.py)**:
+    - Greenhouse 공개 Board API 사용 (boards-api.greenhouse.io/v1)
+    - 쿠팡/두나무 board token 기본 설정, 확장 가능
+    - HTML 콘텐츠 → 플레인텍스트 변환 (_HTMLTextExtractor)
+    - 개인정보 마스킹 (이메일/전화번호)
+    - 12 tests (초기화, 목록, 빈 보드, API 에러, 상세, HTML 제거, 풀 파이프라인, 멀티 보드)
+
+30. **리포트 자동 생성 (report/generator.py)**:
+    - ReportData 데이터클래스 (스킬 랭킹, 회사 프로필, 포지션 비교, Buzz vs Hiring, 블로그 트렌드)
+    - ReportGenerator: 5개 섹션 Markdown 생성 + 파일 저장
+    - 빈 데이터/부분 데이터 graceful 처리
+    - 12 tests (마크다운 생성, 섹션별 검증, 파일 저장, 빈/부분 데이터)
+
+### 산출물
+- **전체 테스트 165개 통과** (Java 44 + Python 121)
+- **Phase 2 완료**
+
+---
+
+## 2026-03-04 | Phase 3 Week 5 — 백엔드 리팩토링 + 크롤러 확장 + React 대시보드
+
+### 진행 내용
+
+31. **백엔드 Package-by-Feature 리팩토링**:
+    - layer 기반 → feature 기반 패키지 구조 전환 (Context7 MCP 참고)
+    - 7개 feature 패키지: posting, analysis, trend, blog, company, skill, global
+    - Controller + Service + DTO + Entity + Repository 동일 패키지에 co-locate
+    - 52개 Java 소스 파일 이동 + 패키지 선언/import 경로 일괄 수정
+    - JPQL fully-qualified 참조(`com.devpulse.posting.PostingStatus.ACTIVE`) 업데이트
+    - `./gradlew compileJava` → BUILD SUCCESSFUL, 전체 테스트 통과
+
+32. **HackerNews Firebase API 크롤러 (hackernews.py)**:
+    - `/topstories.json` → `/item/{id}.json` 2단계 조회
+    - TrendCrawler ABC 확장, story 타입만 필터, rate limit 0.5s
+    - 20 tests (초기화, fetch, item 변환, 풀 파이프라인)
+
+33. **dev.to Forem API 크롤러 (devto.py)**:
+    - `https://dev.to/api/articles` tag/per_page/page 파라미터
+    - ISO 8601 날짜 파싱, 빈 title/url 스킵
+    - 21 tests (초기화, fetch, article 변환, 풀 파이프라인)
+
+34. **React 대시보드 확장 (frontend/)**:
+    - **BuzzVsHiring.tsx**: ScatterChart + 4사분면 (OVERHYPED/ADOPTED/ESTABLISHED/EMERGING), ReferenceLine 임계선, 분류 필터, KPI 카드, 상세 테이블
+    - **BlogTrend.tsx**: LineChart 연도별 스킬 트렌드, 회사 선택, KPI 카드, 인라인 바 차트
+    - Sidebar 네비게이션 2개 추가 (Buzz vs 채용, 블로그 트렌드)
+    - App.tsx 라우트 추가 (/buzz, /blog-trend)
+    - `npm run build` → 성공 (tsc + vite)
+
+### 산출물
+- **전체 테스트 206개 통과** (Java 44 + Python 162)
+- **Phase 3 완료** (배포 제외)

@@ -1,0 +1,47 @@
+# Java / Gradle
+api/.gradle/
+api/build/
+api/bin/
+api/out/
+*.class
+*.jar
+*.war
+
+# Python
+batch/__pycache__/
+batch/**/__pycache__/
+batch/.pytest_cache/
+batch/**/.pytest_cache/
+*.pyc
+*.pyo
+batch/.venv/
+batch/venv/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+*.env.local
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Docker
+devpulse-data/
+
+# OMC
+.omc/
+frontend/.omc/

@@ -1,0 +1,44 @@
+skill_name,category,count,percentage,rank
+Java,language,20,100.0,1
+Spring Boot,framework,19,95.0,2
+Docker,devops,17,85.0,3
+MySQL,database,16,80.0,4
+Kafka,messaging,13,65.0,5
+Redis,database,12,60.0,6
+Kubernetes,devops,12,60.0,7
+AWS,devops,11,55.0,8
+Kotlin,language,10,50.0,9
+PostgreSQL,database,9,45.0,10
+REST API,concept,6,30.0,11
+MSA,concept,5,25.0,12
+CI/CD,concept,5,25.0,13
+Spring Data JPA,framework,4,20.0,14
+Elasticsearch,database,3,15.0,15
+RabbitMQ,messaging,3,15.0,16
+Prometheus,devops,2,10.0,17
+Spring Cloud,framework,2,10.0,18
+gRPC,framework,2,10.0,19
+Event-Driven,concept,2,10.0,20
+GraphQL,framework,2,10.0,21
+Grafana,devops,2,10.0,22
+GCP,devops,2,10.0,23
+S3,devops,1,5.0,24
+TypeScript,language,1,5.0,25
+Terraform,devops,1,5.0,26
+TDD,concept,1,5.0,27
+Spring Security,framework,1,5.0,28
+CQRS,concept,1,5.0,29
+Django,framework,1,5.0,30
+EC2,devops,1,5.0,31
+SQS,messaging,1,5.0,32
+Lambda,devops,1,5.0,33
+Event Sourcing,concept,1,5.0,34
+Linux,devops,1,5.0,35
+QueryDSL,framework,1,5.0,36
+Python,language,1,5.0,37
+GitHub Actions,devops,1,5.0,38
+GitHub Copilot,ai_ml_devtool,1,5.0,39
+Node.js,framework,1,5.0,40
+NestJS,framework,1,5.0,41
+MongoDB,database,1,5.0,42
+AI coding assistant,ai_ml_devtool,1,5.0,43

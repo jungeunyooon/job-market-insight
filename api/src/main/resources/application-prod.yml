@@ -1,0 +1,13 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://devpulse-db:5432/devpulse
+
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+
+management:
+  endpoints:
+    web:
+      base-path: /api/actuator

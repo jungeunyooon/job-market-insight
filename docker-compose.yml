@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: devpulse-db
+    environment:
+      POSTGRES_DB: devpulse
+      POSTGRES_USER: devpulse
+      POSTGRES_PASSWORD: devpulse1234
+    volumes:
+      - devpulse-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devpulse -d devpulse"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devpulse
+
+  api:
+    build: ./api
+    container_name: devpulse-api
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - traefik
+      - devpulse
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.devpulse-api.rule=Host(`job.jungeun.cloud`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.devpulse-api.entrypoints=websecure"
+      - "traefik.http.routers.devpulse-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.devpulse-api.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik"
+
+  frontend:
+    build: ./frontend
+    container_name: devpulse-fe
+    depends_on:
+      - api
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.devpulse-fe.rule=Host(`job.jungeun.cloud`)"
+      - "traefik.http.routers.devpulse-fe.entrypoints=websecure"
+      - "traefik.http.routers.devpulse-fe.tls.certresolver=letsencrypt"
+      - "traefik.http.services.devpulse-fe.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik"
+
+networks:
+  traefik:
+    external: true
+  devpulse:
+
+volumes:
+  devpulse-data:

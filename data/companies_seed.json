@@ -1,0 +1,34 @@
+[
+  {"name": "네이버", "name_en": "Naver", "category": "BIGTECH", "aliases": ["NAVER", "naver", "네이버"], "careers_url": "recruit.navercorp.com", "tech_blog_url": "d2.naver.com", "tech_blog_type": "html", "tags": []},
+  {"name": "쿠팡", "name_en": "Coupang", "category": "BIGTECH", "aliases": ["coupang", "Coupang"], "careers_url": "coupang.jobs/kr", "tech_blog_url": "medium.com/coupang-engineering", "tech_blog_type": "medium", "tags": ["ecommerce"]},
+  {"name": "카카오", "name_en": "Kakao", "category": "BIGTECH", "aliases": ["kakao", "Kakao"], "careers_url": "careers.kakao.com", "tech_blog_url": "tech.kakao.com/blog", "tech_blog_type": "html", "tags": []},
+  {"name": "라인", "name_en": "LINE", "category": "BIGTECH", "aliases": ["LINE", "line", "LY Corporation"], "careers_url": "careers.linecorp.com", "tech_blog_url": "engineering.linecorp.com", "tech_blog_type": "html", "tags": ["global"]},
+  {"name": "우아한형제들", "name_en": "Woowa Brothers", "category": "BIGTECH", "aliases": ["배달의민족", "배민", "woowa", "Woowa Brothers"], "careers_url": "career.woowahan.com", "tech_blog_url": "techblog.woowahan.com", "tech_blog_type": "rss", "tags": ["delivery"]},
+  {"name": "비바리퍼블리카", "name_en": "Viva Republica", "category": "BIGTECH", "aliases": ["토스", "Toss", "toss"], "careers_url": "toss.im/career/jobs", "tech_blog_url": "toss.tech", "tech_blog_type": "html", "tags": ["fintech"]},
+  {"name": "당근마켓", "name_en": "Daangn", "category": "BIGTECH", "aliases": ["당근", "daangn", "Daangn", "Karrot"], "careers_url": "team.daangn.com/jobs", "tech_blog_url": "medium.com/daangn", "tech_blog_type": "medium", "tags": []},
+
+  {"name": "카카오페이", "name_en": "KakaoPay", "category": "BIGTECH_SUB", "aliases": ["kakaopay", "KakaoPay"], "careers_url": "careers.kakaopay.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["fintech"]},
+  {"name": "카카오뱅크", "name_en": "KakaoBank", "category": "BIGTECH_SUB", "aliases": ["kakaobank", "KakaoBank"], "careers_url": "careers.kakaobank.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["finance"]},
+  {"name": "네이버클라우드", "name_en": "Naver Cloud", "category": "BIGTECH_SUB", "aliases": ["NCP", "Naver Cloud Platform"], "careers_url": "recruit.navercorp.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["cloud"]},
+  {"name": "네이버파이낸셜", "name_en": "Naver Financial", "category": "BIGTECH_SUB", "aliases": ["네이버페이", "Naver Pay"], "careers_url": "recruit.navercorp.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["fintech"]},
+  {"name": "라인플러스", "name_en": "LINE Plus", "category": "BIGTECH_SUB", "aliases": ["LINE Plus"], "careers_url": "careers.linecorp.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["global"]},
+
+  {"name": "야놀자", "name_en": "Yanolja", "category": "UNICORN", "aliases": ["yanolja", "Yanolja"], "careers_url": "careers.yanolja.co", "tech_blog_url": "medium.com/yanolja", "tech_blog_type": "medium", "tags": ["travel"]},
+  {"name": "직방", "name_en": "Zigbang", "category": "UNICORN", "aliases": ["zigbang", "Zigbang"], "careers_url": "career.zigbang.com", "tech_blog_url": "medium.com/zigbang", "tech_blog_type": "medium", "tags": ["proptech"]},
+  {"name": "리디", "name_en": "RIDI", "category": "UNICORN", "aliases": ["RIDI", "ridi", "리디북스"], "careers_url": "ridi.career.greetinghr.com", "tech_blog_url": "ridicorp.com/story-category/tech-blog", "tech_blog_type": "html", "tags": ["content"]},
+  {"name": "뱅크샐러드", "name_en": "Banksalad", "category": "UNICORN", "aliases": ["banksalad", "Banksalad"], "careers_url": "corp.banksalad.com/jobs", "tech_blog_url": "blog.banksalad.com/tech", "tech_blog_type": "html", "tags": ["fintech"]},
+  {"name": "컬리", "name_en": "Kurly", "category": "UNICORN", "aliases": ["kurly", "Kurly", "마켓컬리"], "careers_url": "kurly.career.greetinghr.com", "tech_blog_url": "helloworld.kurly.com", "tech_blog_type": "html", "tags": ["ecommerce"]},
+  {"name": "무신사", "name_en": "Musinsa", "category": "UNICORN", "aliases": ["musinsa", "Musinsa"], "careers_url": "musinsacareers.com", "tech_blog_url": "medium.com/musinsa-tech", "tech_blog_type": "medium", "tags": ["fashion", "ecommerce"]},
+  {"name": "두나무", "name_en": "Dunamu", "category": "UNICORN", "aliases": ["dunamu", "Dunamu", "업비트", "Upbit"], "careers_url": "careers.dunamu.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["crypto", "fintech"]},
+  {"name": "오늘의집", "name_en": "Ohouse", "category": "UNICORN", "aliases": ["버킷플레이스", "Bucketplace", "ohouse"], "careers_url": "bucketplace.com/careers", "tech_blog_url": null, "tech_blog_type": null, "tags": ["interior"]},
+
+  {"name": "센드버드", "name_en": "Sendbird", "category": "STARTUP", "aliases": ["sendbird", "Sendbird"], "careers_url": "sendbird.com/ko/careers", "tech_blog_url": null, "tech_blog_type": null, "tags": ["saas", "global"]},
+  {"name": "채널톡", "name_en": "Channel Talk", "category": "STARTUP", "aliases": ["채널코퍼레이션", "Channel.io"], "careers_url": "channel.io/ko/jobs", "tech_blog_url": null, "tech_blog_type": null, "tags": ["saas"]},
+  {"name": "토스랩", "name_en": "Tosslab", "category": "STARTUP", "aliases": ["잔디", "JANDI", "tosslab"], "careers_url": "tosslab.com/careers", "tech_blog_url": null, "tech_blog_type": null, "tags": ["saas"]},
+  {"name": "그린랩스", "name_en": "Greenlabs", "category": "STARTUP", "aliases": ["greenlabs", "Greenlabs"], "careers_url": "greenlabs.co.kr/careers", "tech_blog_url": null, "tech_blog_type": null, "tags": ["agritech"]},
+
+  {"name": "삼성SDS", "name_en": "Samsung SDS", "category": "SI", "aliases": ["samsungsds", "Samsung SDS"], "careers_url": "samsungsds.com/kr/careers", "tech_blog_url": null, "tech_blog_type": null, "tags": []},
+  {"name": "LG CNS", "name_en": "LG CNS", "category": "SI", "aliases": ["lgcns", "LG CNS"], "careers_url": "lgcns.com/careers", "tech_blog_url": null, "tech_blog_type": null, "tags": []},
+  {"name": "NHN", "name_en": "NHN", "category": "MID", "aliases": ["nhn", "엔에이치엔"], "careers_url": "recruit.nhn.com", "tech_blog_url": null, "tech_blog_type": null, "tags": ["cloud", "game"]},
+  {"name": "카페24", "name_en": "Cafe24", "category": "MID", "aliases": ["cafe24", "Cafe24"], "careers_url": "cafe24corp.com/recruit", "tech_blog_url": null, "tech_blog_type": null, "tags": ["ecommerce"]}
+]

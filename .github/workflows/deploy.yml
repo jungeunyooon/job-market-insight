@@ -1,0 +1,48 @@
+name: Deploy to Home Server
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'batch/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd ~/job-market-insight
+
+            # Pull latest changes
+            git pull origin main
+
+            # Build and restart services
+            docker compose build
+            docker compose up -d
+
+            # Wait for API health
+            echo "Waiting for API to be healthy..."
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8080/api/actuator/health > /dev/null 2>&1; then
+                echo "API is healthy!"
+                break
+              fi
+              if [ $i -eq 30 ]; then
+                echo "API health check timed out"
+                docker compose logs api --tail=50
+                exit 1
+              fi
+              sleep 5
+            done
+
+            # Cleanup old images
+            docker image prune -f
