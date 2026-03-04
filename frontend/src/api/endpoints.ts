@@ -51,6 +51,10 @@ export function getCompanyProfile(companyId: number) {
   return get<CompanyProfileResponse>(`/analysis/company-profile/${companyId}`)
 }
 
+export function getCompanyProfileByName(companyName: string) {
+  return get<CompanyProfileResponse>('/analysis/company-profile', { companyName })
+}
+
 export function getPositionComparison(positions: PositionType[], topN = 20) {
   const params = new URLSearchParams()
   positions.forEach((p) => params.append('positions', p))

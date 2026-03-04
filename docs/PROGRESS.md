@@ -95,4 +95,7 @@
 - [x] 배치 실행 명령 추가 (`sync-jobs`, `sync-blogs`, `sync-trends`, `sync-all`)
 - [x] 배치 컨테이너/프로파일 구성 (`batch/Dockerfile`, `docker-compose.yml`)
 - [x] 정기 수집 워크플로우 추가 (`.github/workflows/data-pipeline.yml`, 6시간 주기)
+- [x] 프론트 API 쿼리스트링 조립 버그 수정 (`position-comparison` 400 해결)
+- [x] 회사 프로필 조회를 이름 기반으로 보강 (`company-profile` 404 완화)
+- [x] 갭 분석 빈 결과(`gaps=[]`) 안내 UI 추가
 - [ ] 기술 블로그 시리즈

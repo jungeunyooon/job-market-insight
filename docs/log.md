@@ -225,3 +225,9 @@
     - `7808348` fix(deploy): use container health status in API readiness check
     - `1cbe268` fix(api): resolve enum query failures on postgres
     - `96a7756` feat(batch): add crawl-to-db upsert pipeline and scheduled sync
+
+41. **분석 API 화면 오류 후속 수정 (Codex 협업)**:
+    - `position-comparison` 400 원인: 프론트 API 클라이언트 쿼리스트링 중복 조립 버그
+    - `company-profile/1` 404 원인: 프론트의 회사 ID 하드코딩과 운영 DB ID 불일치
+    - `gap` 빈 화면 개선: `gaps=[]`일 때 데이터 미수집 안내 UI 추가
+    - 회사 프로필 이름 기반 조회 API(`/api/v1/analysis/company-profile?companyName=...`) 추가

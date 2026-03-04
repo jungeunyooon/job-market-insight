@@ -353,3 +353,6 @@ streamlit run app.py
 | 03-04 | TopicExtractor dict 접근 | SkillMatcher가 MatchedSkill dataclass 반환 | m["name"] → m.skill_name 수정 |
 | 03-04 | SkillMatcher 리스트 초기화 | __init__이 path만 허용, list 불가 | isinstance 분기로 list/path 모두 지원 |
 | 03-04 | Package-by-feature sed 실패 | `find -path '*/api/*' -prune`이 프로젝트 디렉토리 `api/` 자체를 prune | prune 제거, 전체 .java에 sed 적용 |
+| 03-05 | position-comparison 400 | 프론트 `get()`가 기존 query string에 `?`를 중복 결합 | API client 경로 조립 로직 수정 |
+| 03-05 | company-profile 404 | 회사 ID 하드코딩과 운영 DB ID 불일치 | 이름 기반 조회 엔드포인트 추가 + 프론트 변경 |
+| 03-05 | gap 화면 공백 | `gaps=[]`인 정상 응답에 대한 빈 상태 UI 부재 | 빈 데이터 안내 컴포넌트 렌더링 추가 |

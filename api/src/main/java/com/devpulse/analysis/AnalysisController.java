@@ -37,6 +37,11 @@ public class AnalysisController {
         return ResponseEntity.ok(analysisService.getCompanyProfile(companyId));
     }
 
+    @GetMapping("/company-profile")
+    public ResponseEntity<CompanyProfileResponse> getCompanyProfileByName(@RequestParam String companyName) {
+        return ResponseEntity.ok(analysisService.getCompanyProfileByName(companyName));
+    }
+
     @GetMapping("/position-comparison")
     public ResponseEntity<PositionComparisonResponse> getPositionComparison(
             @RequestParam List<PositionType> positions,

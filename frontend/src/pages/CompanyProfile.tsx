@@ -11,27 +11,27 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
 import { useApi } from '@/hooks/useApi'
-import { getCompanyProfile } from '@/api/endpoints'
+import { getCompanyProfileByName } from '@/api/endpoints'
 import { CATEGORY_LABELS, POSITION_LABELS } from '@/api/types'
 
 const KNOWN_COMPANIES = [
-  { id: 1, name: '네이버' },
-  { id: 2, name: '쿠팡' },
-  { id: 3, name: '카카오' },
-  { id: 4, name: '토스' },
-  { id: 5, name: '배달의민족' },
-  { id: 6, name: '당근' },
+  { key: '네이버', label: '네이버' },
+  { key: '쿠팡', label: '쿠팡' },
+  { key: '카카오', label: '카카오' },
+  { key: '비바리퍼블리카', label: '토스' },
+  { key: '우아한형제들', label: '배달의민족' },
+  { key: '당근마켓', label: '당근' },
 ]
 
 const PIE_COLORS = ['#4e79a7', '#f28e2b', '#76b7b2', '#e15759', '#59a14f']
 
 export function CompanyProfile() {
-  const [selectedId, setSelectedId] = useState(1)
+  const [selectedCompanyName, setSelectedCompanyName] = useState(KNOWN_COMPANIES[0].key)
   const chart = useChartStyles()
 
   const { data: company, loading, error, refetch } = useApi(
-    () => getCompanyProfile(selectedId),
-    [selectedId],
+    () => getCompanyProfileByName(selectedCompanyName),
+    [selectedCompanyName],
   )
 
   if (loading) return <LoadingState />
@@ -61,15 +61,15 @@ export function CompanyProfile() {
       <div className="mb-6 flex flex-wrap gap-2">
         {KNOWN_COMPANIES.map((c) => (
           <button
-            key={c.id}
-            onClick={() => setSelectedId(c.id)}
+            key={c.key}
+            onClick={() => setSelectedCompanyName(c.key)}
             className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-              selectedId === c.id
+              selectedCompanyName === c.key
                 ? 'bg-accent-blue text-white'
                 : 'bg-bg-surface text-text-muted hover:bg-bg-elevated hover:text-text-primary'
             }`}
           >
-            {c.name}
+            {c.label}
           </button>
         ))}
       </div>

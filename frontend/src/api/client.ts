@@ -42,8 +42,7 @@ export function get<T>(path: string, params?: Record<string, string | number | b
       }
     })
   }
-  const search = url.searchParams.toString()
-  const fullPath = search ? `${path}?${search}` : path
+  const fullPath = `${url.pathname}${url.search}`
   return request<T>(fullPath)
 }
 

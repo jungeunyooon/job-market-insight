@@ -60,7 +60,17 @@ public class AnalysisService {
     public CompanyProfileResponse getCompanyProfile(Long companyId) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new CompanyNotFoundException(companyId));
+        return buildCompanyProfile(company);
+    }
 
+    public CompanyProfileResponse getCompanyProfileByName(String companyName) {
+        Company company = companyRepository.findByName(companyName)
+                .orElseThrow(() -> new CompanyNotFoundByNameException(companyName));
+        return buildCompanyProfile(company);
+    }
+
+    private CompanyProfileResponse buildCompanyProfile(Company company) {
+        Long companyId = company.getId();
         long totalPostings = jobPostingRepository.countByCompanyId(companyId);
 
         List<Object[]> skillRows = postingSkillRepository.findSkillRankingByCompany(companyId);
@@ -174,6 +184,12 @@ public class AnalysisService {
     public static class CompanyNotFoundException extends RuntimeException {
         public CompanyNotFoundException(Long id) {
             super("Company not found: " + id);
+        }
+    }
+
+    public static class CompanyNotFoundByNameException extends RuntimeException {
+        public CompanyNotFoundByNameException(String name) {
+            super("Company not found: " + name);
         }
     }
 }

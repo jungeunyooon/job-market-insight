@@ -24,6 +24,13 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(AnalysisService.CompanyNotFoundByNameException.class)
+    public ProblemDetail handleCompanyNotFoundByName(AnalysisService.CompanyNotFoundByNameException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Company Not Found");
+        return problem;
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());

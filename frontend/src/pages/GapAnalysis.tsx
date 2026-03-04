@@ -79,6 +79,29 @@ export function GapAnalysis() {
     color: PRIORITY_COLORS[g.priority] || '#888',
   }))
 
+  if (gaps.length === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold tracking-tight">스킬 갭 분석</h2>
+          <p className="mt-1 text-sm text-text-muted">
+            내 기술 스택과 시장 수요를 비교하여 학습 우선순위 분석
+          </p>
+        </div>
+        <div className="rounded-xl border border-border-default bg-bg-surface p-8 text-center">
+          <p className="text-sm text-text-primary">분석할 시장 데이터가 아직 없습니다.</p>
+          <p className="mt-2 text-xs text-text-muted">
+            배치 데이터 동기화(`sync-all`) 실행 후 다시 확인해 주세요.
+          </p>
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}

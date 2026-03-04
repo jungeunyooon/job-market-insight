@@ -24,7 +24,15 @@ export function useApi<T>(
       .catch((err) => {
         const message =
           err instanceof ApiError
-            ? `${err.status}: ${err.statusText}`
+            ? (() => {
+                const detail =
+                  typeof err.body === 'object' &&
+                  err.body !== null &&
+                  'detail' in (err.body as Record<string, unknown>)
+                    ? String((err.body as Record<string, unknown>).detail)
+                    : null
+                return detail ? `${err.status}: ${detail}` : `${err.status}: ${err.statusText}`
+              })()
             : err instanceof Error
               ? err.message
               : 'Unknown error'
