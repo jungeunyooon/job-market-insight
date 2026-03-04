@@ -183,3 +183,45 @@
 ### 산출물
 - **전체 테스트 206개 통과** (Java 44 + Python 162)
 - **Phase 3 완료** (배포 제외)
+
+---
+
+## 2026-03-05 | 운영 배포 안정화 + 데이터 파이프라인 구현 (Codex 협업)
+
+### Codex와의 대화 기반 작업 기록
+
+35. **배포 헬스체크 실패 원인 분리**:
+    - 프론트엔드 빌드는 성공, 실패 지점은 API readiness check
+    - 기존 GitHub Actions가 `localhost:8080` 직접 curl로 확인하던 방식 수정
+    - 컨테이너 헬스 상태(`docker inspect ... State.Health.Status`) 기준으로 변경
+    - `docker-compose.yml`의 obsolete `version` 키 제거
+
+36. **데이터 공백 원인 확인**:
+    - 로컬 Docker DB 직접 점검 결과 핵심 테이블 데이터 0건 확인
+    - `batch/main.py`가 크롤링 출력만 하고 DB 저장 경로가 없음을 확인
+    - 즉, 기존 배포환경에는 정기 데이터 적재 파이프라인이 부재
+
+37. **API 500 장애 긴급 수정**:
+    - PostgreSQL ENUM 바인딩 이슈(`position_type = varchar`) 해결
+    - Hibernate `@JdbcTypeCode(SqlTypes.NAMED_ENUM)` 적용
+    - JPQL enum 상수/`null` 파라미터 패턴으로 발생하던 타입 추론 에러 수정
+    - 수정 후 `/api/v1/postings`, `/api/v1/analysis/skill-ranking`, `/api/v1/analysis/buzz-vs-hiring` 200 확인
+
+38. **실제 업서트 파이프라인 구현**:
+    - `batch/pipeline/sync.py` 신규: 크롤링 결과를 DB upsert
+    - `sync-jobs`, `sync-blogs`, `sync-trends`, `sync-all` 명령 추가
+    - 시드 데이터(`skills_seed.json`, `companies_seed.json`)를 먼저 upsert 후 참조 무결성 보장
+    - `posting_skill`, `blog_skill`, `trend_skill` 연결 테이블까지 반영
+
+39. **배포환경 정기 실행 경로 추가**:
+    - `batch/Dockerfile` 추가
+    - `docker-compose.yml`에 `batch` 서비스(profile: `batch`) 추가
+    - `.github/workflows/data-pipeline.yml` 신규:
+      - `workflow_dispatch`(수동 실행)
+      - `cron: 0 */6 * * *` (6시간 주기)
+      - 서버에서 `docker compose --profile batch run --rm batch sync-all` 실행
+
+40. **커밋/푸시 내역 (Codex 대화 세션에서 반영)**:
+    - `7808348` fix(deploy): use container health status in API readiness check
+    - `1cbe268` fix(api): resolve enum query failures on postgres
+    - `96a7756` feat(batch): add crawl-to-db upsert pipeline and scheduled sync

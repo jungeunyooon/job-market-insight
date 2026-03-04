@@ -82,6 +82,17 @@
 - [x] **테스트 44개 통과 (Java) + 162개 통과 (Python) = 206개**
 
 ### 미완료 (의도적 스킵)
-- [ ] Docker Compose 배포
-- [ ] CI/CD
+- [x] Docker Compose 배포 워크플로우 (`.github/workflows/deploy.yml`)
+- [x] CI/CD 기초 구성 (배포 + 데이터 파이프라인 스케줄)
+
+---
+
+## 운영 안정화 (2026-03-05) ✅
+
+- [x] 배포 헬스체크 방식 개선 (`curl localhost` → 컨테이너 health status 대기)
+- [x] PostgreSQL enum/null 파라미터 관련 API 500 장애 수정
+- [x] 배치 DB 업서트 파이프라인 구현 (`batch/pipeline/sync.py`)
+- [x] 배치 실행 명령 추가 (`sync-jobs`, `sync-blogs`, `sync-trends`, `sync-all`)
+- [x] 배치 컨테이너/프로파일 구성 (`batch/Dockerfile`, `docker-compose.yml`)
+- [x] 정기 수집 워크플로우 추가 (`.github/workflows/data-pipeline.yml`, 6시간 주기)
 - [ ] 기술 블로그 시리즈

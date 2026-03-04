@@ -1,7 +1,7 @@
 # DevPulse 프로젝트 문서
 
 > 개발자 채용시장 기술 트렌드 분석 서비스
-> 최종 업데이트: 2026-03-04
+> 최종 업데이트: 2026-03-05
 
 ---
 
@@ -12,7 +12,7 @@
 | **목표** | 채용공고 + 기술 블로그 + 커뮤니티 데이터를 분석하여 기술 트렌드를 시각화 |
 | **PRD** | `career/job-market-analysis-prd.md` (v3.0) |
 | **Repo** | `job-market-insight/` |
-| **Stack** | Spring Boot 3.4.3 + Java 21 (API) / Python 3.10 (Batch) / PostgreSQL 16 / React 19 + Recharts (Dashboard) |
+| **Stack** | Spring Boot 3.4.3 + Java 21 (API) / Python 3.12 (Batch Container) / PostgreSQL 16 / React 19 + Recharts (Dashboard) |
 
 ---
 
@@ -45,7 +45,8 @@ job-market-insight/
 │       ├── company/              # Company + CompanyCategory + CompanyRepository
 │       ├── skill/                # Skill + SkillSourceScope + SkillRepository
 │       └── global/               # GlobalExceptionHandler
-├── batch/                        # Python 크롤러 + NLP
+├── batch/                        # Python 크롤러 + NLP + DB upsert
+│   ├── Dockerfile                # 배치 컨테이너 이미지
 │   ├── crawlers/
 │   │   ├── base.py               # BaseCrawler ABC + RawJobPosting
 │   │   ├── wanted.py             # 원티드 API 크롤러
@@ -63,6 +64,8 @@ job-market-insight/
 │   │   └── topic_extractor.py    # 블로그 주제 추출 (title/tags/content)
 │   ├── report/
 │   │   └── generator.py          # Markdown 리포트 자동 생성
+│   ├── pipeline/
+│   │   └── sync.py               # crawl 결과 DB upsert 파이프라인
 │   ├── phase0_validate.py        # Phase 0 검증 파이프라인
 │   └── tests/                    # pytest 121개
 ├── frontend/                     # React 19 대시보드
@@ -78,7 +81,10 @@ job-market-insight/
 │   ├── companies_seed.json       # 29개 회사 (Big7 + 자회사 + 유니콘 + 스타트업)
 │   ├── position_aliases.json     # BACKEND/PRODUCT/FDE 별칭
 │   └── sample_postings.csv       # Phase 0 검증용 20건
-├── docker-compose.yml            # PostgreSQL 16
+├── docker-compose.yml            # postgres/api/frontend + batch(profile)
+├── .github/workflows/
+│   ├── deploy.yml                # 서버 배포 + API health 대기
+│   └── data-pipeline.yml         # 6시간 주기 배치 동기화
 └── CLAUDE.md                     # AI 활용 규칙 + 프로젝트 컨벤션
 ```
 
@@ -286,9 +292,10 @@ job-market-insight/
 - [x] React 대시보드 7페이지 (Vite + Recharts + TailwindCSS 4 + framer-motion)
 - [x] **테스트 206개 통과** (Java 44 + Python 162)
 
-### 미완료 (의도적 스킵)
-- [ ] Docker Compose 배포
-- [ ] CI/CD
+### 운영 자동화 (2026-03-05)
+- [x] 배포 워크플로우 고도화 (`deploy.yml`: container health 기준)
+- [x] 데이터 파이프라인 워크플로우 (`data-pipeline.yml`: 6시간 주기 + 수동 실행)
+- [x] 배치 업서트 파이프라인 (`sync-all`: jobs/blogs/trends)
 
 ---
 
@@ -315,6 +322,13 @@ cd api
 cd batch
 pip install -r requirements.txt  # pytest, responses, pandas
 python -m pytest -v
+```
+
+### 배치 동기화 실행 (로컬)
+```bash
+docker compose up -d postgres
+docker compose --profile batch build batch
+docker compose --profile batch run --rm batch sync-all
 ```
 
 ### 대시보드
