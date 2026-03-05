@@ -6,7 +6,6 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - 'batch/**'
 
 jobs:
   deploy:
@@ -19,6 +18,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
+          command_timeout: 10m
           script: |
             export GIT_SSH_COMMAND="ssh -F ~/.ssh/config"
             cd ~/job-market-insight
@@ -26,11 +26,11 @@ jobs:
             # Pull latest changes
             git pull origin main
 
-            # Build and restart services
-            docker compose build
-            docker compose up -d
+            # Build and restart services (scheduler uses batch Dockerfile)
+            docker compose build api frontend scheduler
+            docker compose up -d api frontend scheduler
 
-            # Wait for API container healthcheck status
+            # Wait for API container healthcheck
             echo "Waiting for API to be healthy..."
             for i in $(seq 1 30); do
               status=$(docker inspect --format '{{.State.Health.Status}}' devpulse-api 2>/dev/null || echo "unknown")
@@ -40,11 +40,21 @@ jobs:
               fi
               if [ "$status" = "unhealthy" ] || [ $i -eq 30 ]; then
                 echo "API health check timed out (status: $status)"
-                docker compose logs api --tail=100
+                docker compose logs api --tail=50
                 exit 1
               fi
               sleep 5
             done
+
+            # Verify scheduler is running (not crash-looping)
+            sleep 5
+            scheduler_status=$(docker inspect --format '{{.State.Status}}' devpulse-scheduler 2>/dev/null || echo "unknown")
+            if [ "$scheduler_status" != "running" ]; then
+              echo "WARNING: scheduler status=$scheduler_status"
+              docker compose logs scheduler --tail=30
+            else
+              echo "Scheduler is running."
+            fi
 
             # Cleanup old images
             docker image prune -f
