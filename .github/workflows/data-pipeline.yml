@@ -12,6 +12,10 @@ jobs:
     steps:
       - name: Run batch sync on home server
         uses: appleboy/ssh-action@v1
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SARAMIN_API_KEY: ${{ secrets.SARAMIN_API_KEY }}
+          WORK24_API_KEY: ${{ secrets.WORK24_API_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
