@@ -399,6 +399,49 @@ class DevPulseSync:
             return None
 
         # Title-based classification (high confidence)
+        data_eng_title = [
+            "data engineer", "데이터 엔지니어", "데이터엔지니어",
+            "data platform", "데이터 플랫폼", "analytics engineer",
+            "ml engineer", "mlops",
+        ]
+        devops_title = [
+            "devops", "sre", "site reliability", "인프라", "infrastructure",
+            "platform engineer", "cloud engineer", "클라우드 엔지니어",
+            "system engineer", "시스템 엔지니어", "kubernetes",
+        ]
+        ml_ai_title = [
+            "machine learning", "머신러닝", "deep learning", "딥러닝",
+            "ai engineer", "ai 엔지니어", "artificial intelligence",
+            "nlp engineer", "computer vision", "research engineer",
+            "연구원", "researcher",
+        ]
+        mobile_title = [
+            "android", "안드로이드", "ios", "모바일", "mobile",
+            "flutter", "react native", "swift developer", "kotlin developer",
+        ]
+        qa_title = [
+            "qa", "quality assurance", "test engineer", "테스트 엔지니어",
+            "sdet", "automation engineer", "품질 관리",
+        ]
+        security_title = [
+            "security", "보안", "정보보안", "사이버보안",
+            "security engineer", "보안 엔지니어", "penetration",
+            "cert", "취약점",
+        ]
+
+        if any(k in title_lower for k in data_eng_title):
+            return "DATA_ENGINEER"
+        if any(k in title_lower for k in devops_title):
+            return "DEVOPS"
+        if any(k in title_lower for k in ml_ai_title):
+            return "ML_AI"
+        if any(k in title_lower for k in mobile_title):
+            return "MOBILE"
+        if any(k in title_lower for k in qa_title):
+            return "QA"
+        if any(k in title_lower for k in security_title):
+            return "SECURITY"
+
         frontend_title = [
             "frontend", "front-end", "프론트엔드", "react developer",
             "vue developer", "ui developer", "ux engineer",
@@ -424,6 +467,26 @@ class DevPulseSync:
 
         # Fallback: check description but with stricter matching
         desc_lower = description.lower()
+        data_eng_desc = ["data engineer", "데이터 엔지니어", "데이터 파이프라인", "etl", "data warehouse"]
+        devops_desc = ["devops", "sre", "인프라 구축", "ci/cd", "kubernetes", "docker"]
+        ml_ai_desc = ["machine learning", "머신러닝", "deep learning", "모델 학습", "pytorch", "tensorflow"]
+        mobile_desc = ["android", "ios", "모바일 앱", "swift", "kotlin"]
+        qa_desc = ["qa", "테스트 자동화", "test automation", "품질"]
+        security_desc = ["보안", "security", "취약점", "침투"]
+
+        if any(k in desc_lower for k in data_eng_desc):
+            return "DATA_ENGINEER"
+        if any(k in desc_lower for k in devops_desc):
+            return "DEVOPS"
+        if any(k in desc_lower for k in ml_ai_desc):
+            return "ML_AI"
+        if any(k in desc_lower for k in mobile_desc):
+            return "MOBILE"
+        if any(k in desc_lower for k in qa_desc):
+            return "QA"
+        if any(k in desc_lower for k in security_desc):
+            return "SECURITY"
+
         frontend_desc = ["frontend", "front-end", "프론트엔드", "react 개발", "vue 개발"]
         fullstack_desc = ["fullstack", "full-stack", "full stack", "풀스택"]
         backend_desc = ["backend", "back-end", "서버 개발", "백엔드", "spring boot", "api 개발"]

@@ -12,7 +12,7 @@ import {
   type PositionType, type CompanyCategory, type PostingStatus,
 } from '@/api/types'
 
-const POSITIONS: PositionType[] = ['BACKEND', 'FDE', 'PRODUCT']
+const POSITIONS: PositionType[] = ['BACKEND', 'FRONTEND', 'FULLSTACK', 'DATA_ENGINEER', 'DEVOPS', 'ML_AI', 'MOBILE', 'QA', 'SECURITY', 'PRODUCT', 'FDE']
 const CATEGORIES: CompanyCategory[] = ['BIGTECH', 'BIGTECH_SUB', 'UNICORN', 'STARTUP', 'SI', 'MID']
 
 export function JobSearch() {

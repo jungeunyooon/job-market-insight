@@ -1,5 +1,5 @@
 // Enums
-export type PositionType = 'BACKEND' | 'FRONTEND' | 'FULLSTACK' | 'PRODUCT' | 'FDE'
+export type PositionType = 'BACKEND' | 'FRONTEND' | 'FULLSTACK' | 'PRODUCT' | 'FDE' | 'DATA_ENGINEER' | 'DEVOPS' | 'ML_AI' | 'MOBILE' | 'QA' | 'SECURITY'
 export type CompanyCategory = 'BIGTECH' | 'BIGTECH_SUB' | 'UNICORN' | 'STARTUP' | 'SI' | 'MID' | 'FINANCE' | 'UNCATEGORIZED'
 export type PostingStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED' | 'ARCHIVED'
 export type TrendSource = 'GEEKNEWS' | 'HN' | 'DEVTO'
@@ -288,6 +288,12 @@ export const POSITION_LABELS: Record<string, string> = {
   FULLSTACK: '풀스택',
   PRODUCT: '프로덕트',
   FDE: 'FDE',
+  DATA_ENGINEER: '데이터 엔지니어',
+  DEVOPS: 'DevOps/인프라',
+  ML_AI: 'ML/AI',
+  MOBILE: '모바일',
+  QA: 'QA',
+  SECURITY: '보안',
 }
 
 export const CATEGORY_LABELS: Record<string, string> = {

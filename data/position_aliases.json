@@ -9,12 +9,60 @@
     "Java 개발자", "Java Developer",
     "Spring 개발자"
   ],
-  "PRODUCT": [
-    "프로덕트 엔지니어", "Product Engineer",
+  "FRONTEND": [
+    "프론트엔드", "프론트엔드 개발자", "프론트엔드 엔지니어",
+    "Frontend Engineer", "Frontend Developer",
+    "FE Developer", "FE Engineer",
+    "React Developer", "Vue Developer",
+    "UI Developer", "UX Engineer"
+  ],
+  "FULLSTACK": [
     "풀스택", "풀스택 개발자", "풀스택 엔지니어",
     "Full-stack", "Full-stack Developer", "Full-stack Engineer",
     "Fullstack", "Fullstack Developer",
     "Full Stack Developer", "Full Stack Engineer"
+  ],
+  "DATA_ENGINEER": [
+    "데이터 엔지니어", "데이터엔지니어", "Data Engineer",
+    "데이터 플랫폼", "Data Platform Engineer",
+    "Analytics Engineer", "ETL Developer",
+    "ML Engineer", "MLOps Engineer"
+  ],
+  "DEVOPS": [
+    "DevOps", "DevOps Engineer", "데브옵스",
+    "SRE", "Site Reliability Engineer",
+    "인프라 엔지니어", "Infrastructure Engineer",
+    "Platform Engineer", "Cloud Engineer",
+    "클라우드 엔지니어", "시스템 엔지니어", "System Engineer"
+  ],
+  "ML_AI": [
+    "머신러닝", "Machine Learning Engineer",
+    "AI Engineer", "AI 엔지니어",
+    "딥러닝", "Deep Learning Engineer",
+    "NLP Engineer", "Computer Vision Engineer",
+    "Research Engineer", "연구원", "Researcher"
+  ],
+  "MOBILE": [
+    "Android", "안드로이드 개발자", "Android Developer",
+    "iOS", "iOS Developer", "iOS 개발자",
+    "모바일 개발자", "Mobile Developer",
+    "Flutter Developer", "React Native Developer",
+    "Swift Developer", "Kotlin Developer"
+  ],
+  "QA": [
+    "QA", "QA Engineer", "Quality Assurance",
+    "테스트 엔지니어", "Test Engineer",
+    "SDET", "Automation Engineer",
+    "품질 관리"
+  ],
+  "SECURITY": [
+    "보안 엔지니어", "Security Engineer",
+    "정보보안", "사이버보안",
+    "Penetration Tester", "보안 전문가",
+    "CERT", "취약점 분석"
+  ],
+  "PRODUCT": [
+    "프로덕트 엔지니어", "Product Engineer"
   ],
   "FDE": [
     "FDE", "Forward Deployed Engineer",

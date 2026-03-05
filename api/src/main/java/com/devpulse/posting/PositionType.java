@@ -5,5 +5,11 @@ public enum PositionType {
     FRONTEND,
     FULLSTACK,
     PRODUCT,
-    FDE
+    FDE,
+    DATA_ENGINEER,
+    DEVOPS,
+    ML_AI,
+    MOBILE,
+    QA,
+    SECURITY
 }
