@@ -87,7 +87,8 @@ services:
       context: .
       dockerfile: batch/Dockerfile
     container_name: devpulse-scheduler
-    command: ["python", "scheduler.py", "--run-now"]
+    entrypoint: ["python", "scheduler.py"]
+    command: ["--run-now"]
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
