@@ -250,3 +250,86 @@ class TestGreenhouseFullCrawl:
         companies = {p.company_name for p in postings}
         assert "쿠팡" in companies
         assert "두나무" in companies
+
+
+DAANGN_JOB_LIST = {
+    "jobs": [
+        {
+            "id": 3001,
+            "title": "Backend Engineer (Kotlin)",
+            "absolute_url": "https://boards.greenhouse.io/daangn/jobs/3001",
+            "location": {"name": "Seoul, South Korea"},
+            "updated_at": "2026-03-01T10:00:00-05:00",
+            "metadata": [],
+        },
+    ]
+}
+
+DAANGN_JOB_DETAIL = {
+    "id": 3001,
+    "title": "Backend Engineer (Kotlin)",
+    "content": "<p>당근마켓에서 백엔드 엔지니어를 찾습니다.</p>"
+               "<h3>자격요건</h3>"
+               "<ul><li>Kotlin, Spring Boot 경험</li>"
+               "<li>MSA 설계 및 운영 경험</li></ul>"
+               "<h3>우대사항</h3>"
+               "<ul><li>Kubernetes 경험</li></ul>",
+    "absolute_url": "https://boards.greenhouse.io/daangn/jobs/3001",
+    "location": {"name": "Seoul, South Korea"},
+    "departments": [{"name": "Engineering"}],
+    "updated_at": "2026-03-01T10:00:00-05:00",
+}
+
+
+class TestGreenhouseDaangn:
+
+    @responses.activate
+    def test_daangn_job_list_fetch(self) -> None:
+        responses.add(
+            responses.GET,
+            "https://boards-api.greenhouse.io/v1/boards/daangn/jobs",
+            json=DAANGN_JOB_LIST,
+            status=200,
+        )
+
+        crawler = GreenhouseCrawler(board_tokens={"당근마켓": "daangn"})
+        jobs = crawler._fetch_job_list("daangn")
+
+        assert len(jobs) == 1
+        assert jobs[0]["id"] == 3001
+        assert jobs[0]["title"] == "Backend Engineer (Kotlin)"
+
+    @responses.activate
+    def test_daangn_job_detail_fetch(self) -> None:
+        responses.add(
+            responses.GET,
+            "https://boards-api.greenhouse.io/v1/boards/daangn/jobs/3001",
+            json=DAANGN_JOB_DETAIL,
+            status=200,
+        )
+
+        crawler = GreenhouseCrawler(board_tokens={"당근마켓": "daangn"})
+        detail = crawler._fetch_job_detail("daangn", 3001)
+
+        assert detail is not None
+        assert detail["id"] == 3001
+        assert detail["title"] == "Backend Engineer (Kotlin)"
+        assert "content" in detail
+
+    @responses.activate
+    def test_daangn_posting_company_name(self) -> None:
+        responses.add(
+            responses.GET,
+            "https://boards-api.greenhouse.io/v1/boards/daangn/jobs/3001",
+            json=DAANGN_JOB_DETAIL,
+            status=200,
+        )
+
+        crawler = GreenhouseCrawler(board_tokens={"당근마켓": "daangn"})
+        posting = crawler._detail_to_posting("daangn", "당근마켓", DAANGN_JOB_LIST["jobs"][0])
+
+        assert posting is not None
+        assert posting.company_name == "당근마켓"
+        assert posting.source_platform == "greenhouse"
+        assert posting.title == "Backend Engineer (Kotlin)"
+        assert "boards.greenhouse.io" in posting.source_url

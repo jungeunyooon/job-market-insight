@@ -28,10 +28,13 @@ logger = logging.getLogger(__name__)
 def run_job_crawlers() -> dict[str, list]:
     from crawlers.greenhouse import GreenhouseCrawler
     from crawlers.jumpit import JumpitCrawler
+    from crawlers.kakao import KakaoCareerCrawler
     from crawlers.naver_career import NaverCareerCrawler
     from crawlers.saramin import SaraminAPICrawler
     from crawlers.superrookie import SuperRookieCrawler
+    from crawlers.toss import TossCareerCrawler
     from crawlers.wanted import WantedAPICrawler
+    from crawlers.woowa import WoowaCareerCrawler
     from crawlers.work24 import Work24Crawler
 
     crawlers = [
@@ -42,6 +45,9 @@ def run_job_crawlers() -> dict[str, list]:
         ("NaverCareerCrawler", NaverCareerCrawler()),
         ("SaraminAPICrawler", SaraminAPICrawler()),
         ("Work24Crawler", Work24Crawler()),
+        ("TossCareerCrawler", TossCareerCrawler()),
+        ("KakaoCareerCrawler", KakaoCareerCrawler()),
+        ("WoowaCareerCrawler", WoowaCareerCrawler()),
     ]
 
     results: dict[str, list] = {}
@@ -270,14 +276,17 @@ def cmd_sync_trends() -> None:
 def cmd_sync_all() -> None:
     from crawlers.greenhouse import GreenhouseCrawler
     from crawlers.jumpit import JumpitCrawler
+    from crawlers.kakao import KakaoCareerCrawler
     from crawlers.naver_career import NaverCareerCrawler
     from crawlers.saramin import SaraminAPICrawler
     from crawlers.superrookie import SuperRookieCrawler
     from crawlers.tech_blog import TechBlogCrawler
+    from crawlers.toss import TossCareerCrawler
     from crawlers.trend.devto import DevToCrawler
     from crawlers.trend.geeknews import GeekNewsCrawler
     from crawlers.trend.hackernews import HackerNewsCrawler
     from crawlers.wanted import WantedAPICrawler
+    from crawlers.woowa import WoowaCareerCrawler
     from crawlers.work24 import Work24Crawler
 
     sync = DevPulseSync()
@@ -300,6 +309,9 @@ def cmd_sync_all() -> None:
             ("NaverCareerCrawler", NaverCareerCrawler()),
             ("SaraminAPICrawler", SaraminAPICrawler()),
             ("Work24Crawler", Work24Crawler()),
+            ("TossCareerCrawler", TossCareerCrawler()),
+            ("KakaoCareerCrawler", KakaoCareerCrawler()),
+            ("WoowaCareerCrawler", WoowaCareerCrawler()),
         ]
         job_total = job_inserted = job_updated = job_failed = 0
         for name, crawler in job_crawlers:

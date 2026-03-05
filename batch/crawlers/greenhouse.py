@@ -27,6 +27,7 @@ GREENHOUSE_API_BASE = "https://boards-api.greenhouse.io/v1/boards"
 DEFAULT_BOARD_TOKENS = {
     "쿠팡": "coupang",
     "두나무": "dunamu",
+    "당근마켓": "daangn",
 }
 
 

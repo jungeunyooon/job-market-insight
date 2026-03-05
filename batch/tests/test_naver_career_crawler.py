@@ -15,6 +15,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from crawlers.naver_career import NaverCareerCrawler
 
 
+NAVER_LIST_PAGE = "https://recruit.navercorp.com/rcrt/list.do"
+MOCK_LIST_PAGE_HTML = "<html><body>Naver Recruit</body></html>"
+
 MOCK_JOB_LIST_RESPONSE = {
     "list": [
         {
@@ -205,6 +208,13 @@ class TestNaverCareerDetail:
 class TestNaverCareerFullCrawl:
     @responses.activate
     def test_full_crawl_pipeline(self, crawler: NaverCareerCrawler) -> None:
+        # Mock session init (list.do GET for XSRF-TOKEN)
+        responses.add(
+            responses.GET,
+            NAVER_LIST_PAGE,
+            body=MOCK_LIST_PAGE_HTML,
+            status=200,
+        )
         # Mock list endpoint
         responses.add(
             responses.POST,
@@ -241,6 +251,13 @@ class TestNaverCareerFullCrawl:
     @responses.activate
     def test_deduplicates_by_anno_id(self) -> None:
         crawler = NaverCareerCrawler(max_pages=2, page_size=10)
+        # Mock session init
+        responses.add(
+            responses.GET,
+            NAVER_LIST_PAGE,
+            body=MOCK_LIST_PAGE_HTML,
+            status=200,
+        )
         # Same items in both pages
         responses.add(
             responses.POST,

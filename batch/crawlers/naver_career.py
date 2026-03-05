@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 NAVER_CAREER_API = "https://recruit.navercorp.com/rcrt/loadJobList.do"
 NAVER_CAREER_DETAIL = "https://recruit.navercorp.com/rcrt/view.do"
+NAVER_CAREER_LIST_PAGE = "https://recruit.navercorp.com/rcrt/list.do"
 NAVER_CAREER_URL = "https://recruit.navercorp.com/rcrt/view.do?annoId={anno_id}"
 
 
@@ -28,6 +29,9 @@ class NaverCareerCrawler(BaseCrawler):
 
     Fetches job postings via Naver's internal AJAX API.
     Rate limited to 1 req/sec. robots.txt 준수.
+
+    세션 초기화 필요: list.do 방문으로 XSRF-TOKEN 쿠키 획득 후
+    X-XSRF-TOKEN 헤더와 함께 AJAX API 호출.
     """
 
     def __init__(self, max_pages: int = 5, page_size: int = 20) -> None:
@@ -35,9 +39,26 @@ class NaverCareerCrawler(BaseCrawler):
         self._page_size = page_size
         self._session = requests.Session()
         self._session.headers.update({
-            "User-Agent": "DevPulse-Bot/1.0 (+https://github.com/jungeunyooon/job-market-insight)",
-            "Accept": "application/json, text/html",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Referer": "https://recruit.navercorp.com/rcrt/list.do",
+            "Origin": "https://recruit.navercorp.com",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
         })
+
+    def _init_session(self) -> None:
+        """list.do 방문으로 XSRF-TOKEN 쿠키 획득 후 헤더에 세팅."""
+        try:
+            self._session.get(NAVER_CAREER_LIST_PAGE, timeout=10)
+            xsrf_token = self._session.cookies.get("XSRF-TOKEN")
+            if xsrf_token:
+                self._session.headers.update({"X-XSRF-TOKEN": xsrf_token})
+                logger.debug("Naver Career: XSRF-TOKEN acquired")
+            else:
+                logger.warning("Naver Career: XSRF-TOKEN not found in cookies")
+        except requests.RequestException as e:
+            logger.error("Naver Career session init failed: %s", e)
 
     def get_source_name(self) -> str:
         return "naver_career"
@@ -52,6 +73,7 @@ class NaverCareerCrawler(BaseCrawler):
         2. 각 공고의 상세 페이지 HTML 파싱
         3. 자격요건/우대사항/담당업무 구조화 추출
         """
+        self._init_session()
         seen_ids: set[str] = set()
         job_items: list[dict] = []
 
