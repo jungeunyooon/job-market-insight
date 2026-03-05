@@ -57,13 +57,8 @@ export function GapAnalysis() {
     [position, mySkills],
   )
 
-  if (loading) return <LoadingState />
-  if (error || !data) return <ErrorState message={error || '데이터를 불러올 수 없습니다'} onRetry={refetch} />
-
-  const gaps = data.gaps
-  const matchPercentage = data.matchPercentage
-
-  const radialData = [{ name: '매칭률', value: matchPercentage, fill: chart.accentBlue }]
+  const gaps = data?.gaps ?? []
+  const matchPercentage = data?.matchPercentage ?? 0
 
   const groupedGaps = useMemo(() => {
     const groups: Record<string, SkillGap[]> = {}
@@ -73,6 +68,11 @@ export function GapAnalysis() {
     })
     return groups
   }, [gaps])
+
+  if (loading) return <LoadingState />
+  if (error || !data) return <ErrorState message={error || '데이터를 불러올 수 없습니다'} onRetry={refetch} />
+
+  const radialData = [{ name: '매칭률', value: matchPercentage, fill: chart.accentBlue }]
 
   const barData = gaps.slice(0, 10).map((g) => ({
     ...g,
