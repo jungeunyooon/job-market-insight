@@ -16,6 +16,9 @@ from psycopg2.extras import Json
 from crawlers.base import RawJobPosting
 from crawlers.tech_blog import BlogPost
 from crawlers.trend.base import TrendPost
+from nlp.llm_blog_keyword_extractor import llm_extract_blog_keywords
+from nlp.llm_keyword_extractor import llm_extract_keywords
+from nlp.llm_normalizer import llm_normalize_requirements
 from nlp.llm_summarizer import llm_summarize
 from nlp.skill_matcher import SkillMatcher
 from nlp.summarizer import extractive_summary
@@ -217,6 +220,31 @@ class DevPulseSync:
                             """,
                             (posting_id, skill_id, skill_info["is_required"], skill_info["is_preferred"], Json(matched_keywords)),
                         )
+                    # LLM 심층 키워드 추출 + 요구사항 정규화
+                    llm_kws = llm_extract_keywords(
+                        requirements_raw=post.requirements_raw,
+                        preferred_raw=post.preferred_raw,
+                        responsibilities_raw=post.responsibilities_raw,
+                    )
+                    normalized_reqs = llm_normalize_requirements(
+                        requirements_raw=post.requirements_raw,
+                        preferred_raw=post.preferred_raw,
+                    )
+                    if llm_kws or normalized_reqs:
+                        cur.execute(
+                            """
+                            UPDATE job_posting
+                            SET llm_keywords = %s,
+                                normalized_requirements = %s
+                            WHERE id = %s
+                            """,
+                            (Json(llm_kws), Json(normalized_reqs), posting_id),
+                        )
+
+                    # LLM 키워드를 스킬별로 동적 업데이트
+                    if llm_kws:
+                        matched_skill_names = {s["name"].lower() for s in skills}
+                        self._update_skill_keywords_from_llm(cur, llm_kws, matched_skill_names)
                 except Exception as exc:
                     stats.failed += 1
                     error_message = str(exc)
@@ -246,8 +274,10 @@ class DevPulseSync:
 
                     text = f"{post.title}\n{post.content_raw}"
                     matched = self._skill_matcher.match(text, scope="BOTH")
+                    matched_skill_names: set[str] = set()
                     for m in matched:
                         skill_id = self._ensure_skill(cur, m.skill_name)
+                        matched_skill_names.add(m.skill_name.lower())
                         cur.execute(
                             """
                             INSERT INTO blog_skill (blog_post_id, skill_id, mention_count, created_at)
@@ -257,6 +287,18 @@ class DevPulseSync:
                             """,
                             (blog_id, skill_id),
                         )
+
+                    # LLM 블로그 키워드 추출
+                    llm_kws = llm_extract_blog_keywords(
+                        title=post.title,
+                        content=post.content_raw,
+                    )
+                    if llm_kws:
+                        cur.execute(
+                            "UPDATE tech_blog_post SET llm_keywords = %s WHERE id = %s",
+                            (Json(llm_kws), blog_id),
+                        )
+                        self._update_skill_keywords_from_llm(cur, llm_kws, matched_skill_names)
                 except Exception as exc:
                     stats.failed += 1
                     error_message = str(exc)
@@ -297,6 +339,9 @@ class DevPulseSync:
                     stats.failed += 1
                     error_message = str(exc)
                     logger.exception("Failed to sync trend post: %s", post.external_id)
+
+            # 트렌드 스냅샷 저장 (sync 완료 후 스킬별 언급 수 집계)
+            self._save_trend_snapshot(cur, source_name, top_n=20)
 
             self._conn.commit()
 
@@ -388,6 +433,16 @@ class DevPulseSync:
                     experience_level = %s,
                     description_raw = %s,
                     description_cleaned = %s,
+                    requirements_raw = %s,
+                    preferred_raw = %s,
+                    responsibilities_raw = %s,
+                    tech_stack_raw = %s,
+                    benefits_raw = %s,
+                    company_size = %s,
+                    team_info = %s,
+                    hiring_process = %s,
+                    employment_type = %s,
+                    work_type = %s,
                     location = %s,
                     status = 'ACTIVE',
                     posted_at = %s,
@@ -403,6 +458,16 @@ class DevPulseSync:
                     post.experience_level,
                     post.description_raw,
                     post.description_raw,
+                    post.requirements_raw,
+                    post.preferred_raw,
+                    post.responsibilities_raw,
+                    post.tech_stack_raw,
+                    post.benefits_raw,
+                    post.company_size,
+                    post.team_info,
+                    post.hiring_process,
+                    post.employment_type,
+                    post.work_type,
                     post.location,
                     posted_at,
                     posting_id,
@@ -414,11 +479,15 @@ class DevPulseSync:
             """
             INSERT INTO job_posting (
                 company_id, title, title_normalized, position_type, experience_level,
-                description_raw, description_cleaned, source_platform, source_url,
+                description_raw, description_cleaned,
+                requirements_raw, preferred_raw, responsibilities_raw,
+                tech_stack_raw, benefits_raw, company_size, team_info,
+                hiring_process, employment_type, work_type,
+                source_platform, source_url,
                 salary_min, salary_max, location, status, posted_at,
                 crawled_at, last_seen_at, created_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, NOW(), NOW(), NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'ACTIVE', %s, NOW(), NOW(), NOW())
             RETURNING id
             """,
             (
@@ -429,6 +498,16 @@ class DevPulseSync:
                 post.experience_level,
                 post.description_raw,
                 post.description_raw,
+                post.requirements_raw,
+                post.preferred_raw,
+                post.responsibilities_raw,
+                post.tech_stack_raw,
+                post.benefits_raw,
+                post.company_size,
+                post.team_info,
+                post.hiring_process,
+                post.employment_type,
+                post.work_type,
                 source_platform,
                 source_url,
                 post.salary_min,
@@ -562,17 +641,38 @@ class DevPulseSync:
         )
         return int(cur.fetchone()[0])
 
-    def _classify_skill_requirement(self, skill_name: str, description: str) -> tuple[bool, bool]:
-        """스킬이 필수/우대 섹션 중 어디에 등장하는지 판단한다."""
+    def _classify_skill_requirement(
+        self, skill_name: str, description: str,
+        requirements_raw: str | None = None, preferred_raw: str | None = None,
+    ) -> tuple[bool, bool]:
+        """스킬이 필수/우대 섹션 중 어디에 등장하는지 판단한다.
+
+        구조화 필드(requirements_raw, preferred_raw)가 있으면 정확하게 판단하고,
+        없으면 기존 description 기반 heuristic을 사용한다.
+        """
+        skill_lower = skill_name.lower()
+
+        # 구조화 필드가 있으면 정확한 분류
+        if requirements_raw or preferred_raw:
+            in_req = bool(requirements_raw and skill_lower in requirements_raw.lower())
+            in_pref = bool(preferred_raw and skill_lower in preferred_raw.lower())
+            if in_req and in_pref:
+                return True, True
+            if in_req:
+                return True, False
+            if in_pref:
+                return False, True
+            # 구조화 필드에 없지만 description에는 있음 → required로 기본 처리
+            return True, False
+
+        # Fallback: description 기반 heuristic
         required_headers = ["자격요건", "필수", "요구사항", "필수 조건", "지원자격", "requirements", "required", "qualifications", "must have"]
         preferred_headers = ["우대", "우대사항", "우대 조건", "플러스", "preferred", "nice to have", "bonus", "plus"]
 
-        # Split description into sections by common headers
         header_pattern = "|".join(re.escape(h) for h in required_headers + preferred_headers)
         sections = re.split(rf"({header_pattern})", description, flags=re.IGNORECASE)
 
         current_section: str | None = None
-        skill_lower = skill_name.lower()
 
         for chunk in sections:
             chunk_lower = chunk.lower().strip()
@@ -584,10 +684,8 @@ class DevPulseSync:
                 if current_section == "preferred":
                     return False, True
                 else:
-                    # required section or ambiguous → default to required
                     return True, False
 
-        # skill found but no section detected → default to required
         if skill_lower in description.lower():
             return True, False
 
@@ -599,19 +697,112 @@ class DevPulseSync:
         desc_lower = description.lower()
         return [kw for kw in keywords if kw.lower() in desc_lower]
 
+    def _update_skill_keywords_from_llm(
+        self, cur, llm_keywords: list[dict], matched_skill_names: set[str],
+    ) -> None:
+        """LLM이 추출한 키워드를 관련 스킬의 keywords 필드에 동적으로 병합한다.
+
+        각 LLM 키워드의 텍스트에 스킬명이 포함되어 있으면 해당 스킬과 연결한다.
+        기존 keywords 배열에 없는 새 키워드만 추가 (중복 방지).
+        """
+        # 스킬명 → LLM 키워드 매핑
+        skill_new_keywords: dict[str, list[str]] = {}
+        for kw_item in llm_keywords:
+            kw_text = kw_item.get("keyword", "").strip()
+            if not kw_text or len(kw_text) < 3:
+                continue
+            kw_lower = kw_text.lower()
+            for skill_name in matched_skill_names:
+                # 스킬명이 키워드에 포함되거나, 키워드가 스킬과 관련
+                if skill_name in kw_lower or kw_lower in skill_name:
+                    continue  # "Java" 같은 스킬명 자체는 건너뜀
+                # 모든 매칭된 스킬에 키워드 연결
+            # 스킬별 직접 연결이 어려우면, 모든 매칭 스킬에 공통 키워드로 추가
+            for skill_name in matched_skill_names:
+                skill_new_keywords.setdefault(skill_name, []).append(kw_text)
+
+        for skill_name, new_kws in skill_new_keywords.items():
+            if not new_kws:
+                continue
+            # 기존 keywords 가져오기
+            existing = self._skill_keywords.get(skill_name, [])
+            existing_lower = {k.lower() for k in existing}
+            added = [kw for kw in new_kws if kw.lower() not in existing_lower]
+            if not added:
+                continue
+
+            # DB에 병합 (기존 + 신규, 중복 제거)
+            merged = existing + added
+            # 메모리 캐시도 업데이트
+            self._skill_keywords[skill_name] = merged
+            cur.execute(
+                """
+                UPDATE skill
+                SET keywords = %s
+                WHERE LOWER(name) = %s
+                """,
+                (Json(merged), skill_name),
+            )
+            logger.debug("스킬 '%s' 키워드 %d개 동적 추가: %s", skill_name, len(added), added[:3])
+
+    def _save_trend_snapshot(self, cur, source_name: str, top_n: int = 20) -> None:
+        """sync 완료 후 스킬별 언급 수를 집계하여 trend_snapshot에 저장한다."""
+        try:
+            # source_name → trend_source enum 매핑
+            source_map = {"geeknews": "GEEKNEWS", "hn": "HN", "devto": "DEVTO"}
+            source_enum = source_map.get(source_name.lower())
+            if not source_enum:
+                logger.debug("스냅샷 저장 건너뜀: 알 수 없는 소스 '%s'", source_name)
+                return
+
+            # 최근 30일 기준 스킬 랭킹 집계
+            cur.execute(
+                """
+                SELECT s.name, COUNT(DISTINCT ts.trend_post_id) as cnt
+                FROM trend_skill ts
+                JOIN skill s ON s.id = ts.skill_id
+                JOIN trend_post tp ON tp.id = ts.trend_post_id
+                WHERE tp.source = %s
+                  AND tp.published_at >= NOW() - INTERVAL '30 days'
+                GROUP BY s.name
+                ORDER BY cnt DESC
+                LIMIT %s
+                """,
+                (source_enum, top_n),
+            )
+            rows = cur.fetchall()
+            if not rows:
+                return
+
+            for rank, (skill_name, mention_count) in enumerate(rows, start=1):
+                cur.execute(
+                    """
+                    INSERT INTO trend_snapshot (source, skill_name, rank, mention_count, snapshot_at)
+                    VALUES (%s, %s, %s, %s, NOW())
+                    """,
+                    (source_enum, skill_name, rank, mention_count),
+                )
+            logger.info("트렌드 스냅샷 저장 완료: source=%s, %d개 스킬", source_enum, len(rows))
+        except Exception:
+            logger.exception("트렌드 스냅샷 저장 실패: source=%s", source_name)
+
     def _extract_job_skills(self, post: RawJobPosting) -> list[dict]:
         extracted: dict[str, dict] = {}
         for tag in post.tags:
             cleaned = str(tag).strip()
             if cleaned and cleaned not in extracted:
-                is_required, is_preferred = self._classify_skill_requirement(cleaned, post.description_raw)
+                is_required, is_preferred = self._classify_skill_requirement(
+                    cleaned, post.description_raw, post.requirements_raw, post.preferred_raw,
+                )
                 extracted[cleaned] = {"name": cleaned, "is_required": is_required, "is_preferred": is_preferred}
 
         text = f"{post.title}\n{post.description_raw}"
         for matched in self._skill_matcher.match(text, scope="JOB_POSTING"):
             name = matched.skill_name
             if name not in extracted:
-                is_required, is_preferred = self._classify_skill_requirement(name, post.description_raw)
+                is_required, is_preferred = self._classify_skill_requirement(
+                    name, post.description_raw, post.requirements_raw, post.preferred_raw,
+                )
                 extracted[name] = {"name": name, "is_required": is_required, "is_preferred": is_preferred}
 
         return sorted(extracted.values(), key=lambda x: x["name"])

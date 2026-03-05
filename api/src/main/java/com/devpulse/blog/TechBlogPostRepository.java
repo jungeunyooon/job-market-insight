@@ -1,5 +1,7 @@
 package com.devpulse.blog;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +14,10 @@ public interface TechBlogPostRepository extends JpaRepository<TechBlogPost, Long
     Optional<TechBlogPost> findByUrl(String url);
 
     List<TechBlogPost> findByCompanyIdOrderByPublishedAtDesc(Long companyId);
+
+    Page<TechBlogPost> findAllByOrderByPublishedAtDesc(Pageable pageable);
+
+    Page<TechBlogPost> findByCompanyIdOrderByPublishedAtDesc(Long companyId, Pageable pageable);
 
     @Query("SELECT bp.publishedYear, COUNT(bp) FROM TechBlogPost bp " +
            "WHERE bp.company.id = :companyId " +

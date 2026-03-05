@@ -77,6 +77,8 @@ class PostingControllerTest {
                 new CompanyInfo(1L, "네이버", CompanyCategory.BIGTECH),
                 PositionType.BACKEND, "3년 이상",
                 "Java, Spring Boot 기반 서버 개발",
+                "Java 3년 이상", null, null, null, null,
+                null, null, null, null, null,
                 "판교", 5000, 8000,
                 PostingStatus.ACTIVE, "wanted", "https://wanted.co.kr/wd/1",
                 List.of(new SkillInfo(1L, "Java", "language", true, false)),

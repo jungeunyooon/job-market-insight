@@ -10,6 +10,8 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "job_posting")
@@ -44,6 +46,36 @@ public class JobPosting {
 
     @Column(name = "description_cleaned", columnDefinition = "TEXT")
     private String descriptionCleaned;
+
+    @Column(name = "requirements_raw", columnDefinition = "TEXT")
+    private String requirementsRaw;
+
+    @Column(name = "preferred_raw", columnDefinition = "TEXT")
+    private String preferredRaw;
+
+    @Column(name = "responsibilities_raw", columnDefinition = "TEXT")
+    private String responsibilitiesRaw;
+
+    @Column(name = "tech_stack_raw", columnDefinition = "TEXT")
+    private String techStackRaw;
+
+    @Column(name = "benefits_raw", columnDefinition = "TEXT")
+    private String benefitsRaw;
+
+    @Column(name = "company_size", length = 100)
+    private String companySize;
+
+    @Column(name = "team_info", columnDefinition = "TEXT")
+    private String teamInfo;
+
+    @Column(name = "hiring_process", columnDefinition = "TEXT")
+    private String hiringProcess;
+
+    @Column(name = "employment_type", length = 50)
+    private String employmentType;
+
+    @Column(name = "work_type", length = 50)
+    private String workType;
 
     @Column(name = "source_platform", nullable = false, length = 50)
     private String sourcePlatform;
@@ -80,6 +112,14 @@ public class JobPosting {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "llm_keywords", columnDefinition = "jsonb")
+    private List<Map<String, String>> llmKeywords;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "normalized_requirements", columnDefinition = "jsonb")
+    private List<Map<String, String>> normalizedRequirements;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
@@ -92,6 +132,10 @@ public class JobPosting {
     public JobPosting(Company company, String title, String titleNormalized,
                       PositionType positionType, String experienceLevel,
                       String descriptionRaw, String descriptionCleaned,
+                      String requirementsRaw, String preferredRaw,
+                      String responsibilitiesRaw, String techStackRaw,
+                      String benefitsRaw, String companySize, String teamInfo,
+                      String hiringProcess, String employmentType, String workType,
                       String sourcePlatform, String sourceUrl,
                       Integer salaryMin, Integer salaryMax, String location,
                       PostingStatus status, LocalDateTime postedAt) {
@@ -102,6 +146,16 @@ public class JobPosting {
         this.experienceLevel = experienceLevel;
         this.descriptionRaw = descriptionRaw;
         this.descriptionCleaned = descriptionCleaned;
+        this.requirementsRaw = requirementsRaw;
+        this.preferredRaw = preferredRaw;
+        this.responsibilitiesRaw = responsibilitiesRaw;
+        this.techStackRaw = techStackRaw;
+        this.benefitsRaw = benefitsRaw;
+        this.companySize = companySize;
+        this.teamInfo = teamInfo;
+        this.hiringProcess = hiringProcess;
+        this.employmentType = employmentType;
+        this.workType = workType;
         this.sourcePlatform = sourcePlatform;
         this.sourceUrl = sourceUrl;
         this.salaryMin = salaryMin;

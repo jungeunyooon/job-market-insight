@@ -4,13 +4,13 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from 'recharts'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, ExternalLink } from 'lucide-react'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
 import { useApi } from '@/hooks/useApi'
-import { getYearlySkillTrend } from '@/api/endpoints'
+import { getYearlySkillTrend, getBlogPosts } from '@/api/endpoints'
 
 const CHART_COLORS = [
   '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948',
@@ -24,6 +24,8 @@ export function BlogTrend() {
     () => getYearlySkillTrend({ topN: 10 }),
     [],
   )
+
+  const { data: postsData } = useApi(() => getBlogPosts({ size: 10 }), [])
 
   // Derive all skill names from yearlyData
   const allSkills = useMemo(() => {
@@ -195,6 +197,43 @@ export function BlogTrend() {
           </tbody>
         </table>
       </div>
+
+      {/* Recent Blog Posts */}
+      {postsData && postsData.content.length > 0 && (
+        <div className="mt-6 overflow-hidden rounded-xl border border-border-default bg-bg-surface">
+          <div className="border-b border-border-default bg-bg-elevated px-4 py-3">
+            <h3 className="font-semibold">최근 블로그 포스트</h3>
+          </div>
+          <div className="divide-y divide-border-muted">
+            {postsData.content.map((post) => (
+              <div key={post.id} className="group flex items-start gap-4 px-4 py-3 transition-colors hover:bg-bg-elevated">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={post.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-text-primary hover:text-accent-blue hover:underline"
+                    >
+                      {post.title}
+                    </a>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
+                  {post.summary && (
+                    <p className="mt-1 line-clamp-2 text-sm text-text-muted">{post.summary}</p>
+                  )}
+                  <div className="mt-1.5 flex items-center gap-3 text-xs text-text-subtle">
+                    <span>{post.companyName}</span>
+                    {post.publishedAt && (
+                      <span>{new Date(post.publishedAt).toLocaleDateString('ko-KR')}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }

@@ -159,7 +159,11 @@ class AnalysisControllerTest {
     void getSkillMindmap_returnsKeywordData() throws Exception {
         SkillMindmapResponse response = new SkillMindmapResponse(
                 "Redis", "레디스", "database",
-                List.of("캐싱 전략", "TTL", "캐시 미스"),
+                List.of(
+                        new SkillMindmapResponse.KeywordNode("캐싱 전략", 15, 22.1),
+                        new SkillMindmapResponse.KeywordNode("TTL", 10, 14.7),
+                        new SkillMindmapResponse.KeywordNode("캐시 미스", 5, 7.4)
+                ),
                 Map.of("keywords", List.of(
                         new SkillMindmapResponse.KeywordNode("캐싱 전략", 15, 22.1),
                         new SkillMindmapResponse.KeywordNode("TTL", 10, 14.7)

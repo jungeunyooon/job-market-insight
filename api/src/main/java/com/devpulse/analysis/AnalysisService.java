@@ -185,6 +185,35 @@ public class AnalysisService {
         return "LOW";
     }
 
+    public NormalizedRequirementResponse getNormalizedRequirements(PositionType positionType, int topN) {
+        List<Object[]> rows = jobPostingRepository.findNormalizedRequirementAggregation(
+                positionType != null, positionType != null ? positionType.name() : "BACKEND"
+        );
+
+        long totalPostings = jobPostingRepository.countByPositionTypeAndStatus(
+                positionType != null ? positionType : PositionType.BACKEND,
+                PostingStatus.ACTIVE
+        );
+
+        List<NormalizedRequirementResponse.RequirementItem> items = new ArrayList<>();
+        int rank = 1;
+        for (Object[] row : rows) {
+            if (rank > topN) break;
+            String normalized = (String) row[0];
+            String category = (String) row[1];
+            long count = ((Number) row[2]).longValue();
+            double percentage = totalPostings > 0 ? Math.round((count * 100.0) / totalPostings * 10) / 10.0 : 0;
+            items.add(new NormalizedRequirementResponse.RequirementItem(rank++, normalized, category, count, percentage));
+        }
+
+        return new NormalizedRequirementResponse(
+                java.time.LocalDate.now(),
+                positionType != null ? positionType.name() : "ALL",
+                (int) totalPostings,
+                items
+        );
+    }
+
     public SkillMindmapResponse getSkillMindmap(String skillName) {
         Skill skill = skillRepository.findByName(skillName)
                 .orElseThrow(() -> new EntityNotFoundException("Skill not found: " + skillName));
@@ -216,7 +245,7 @@ public class AnalysisService {
                 skill.getName(),
                 skill.getNameKo(),
                 skill.getCategory(),
-                keywords,
+                nodes,
                 keywordGroups,
                 (int) totalPostings
         );

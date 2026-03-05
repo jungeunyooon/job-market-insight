@@ -46,6 +46,10 @@ public class TechBlogPost {
     @Column(columnDefinition = "jsonb")
     private List<String> topics;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "llm_keywords", columnDefinition = "jsonb")
+    private List<Object> llmKeywords;
+
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
 

@@ -154,21 +154,32 @@ class WantedAPICrawler(BaseCrawler):
         company = job.get("company", {})
         address = job.get("address", {})
 
+        # 구조화 필드 추출
+        requirements_raw = detail.get("requirements")
+        preferred_raw = detail.get("preferred")
+        responsibilities_raw = detail.get("main_tasks")
+        intro = detail.get("intro", "")
+        benefits = detail.get("benefits")
+        hiring_process = detail.get("hiring_process")
+
         # Build description from detail sections
         desc_parts = []
-        if detail.get("intro"):
-            desc_parts.append(detail["intro"])
-        if detail.get("main_tasks"):
-            desc_parts.append(f"주요업무: {detail['main_tasks']}")
-        if detail.get("requirements"):
-            desc_parts.append(f"자격요건: {detail['requirements']}")
-        if detail.get("preferred"):
-            desc_parts.append(f"우대사항: {detail['preferred']}")
+        if intro:
+            desc_parts.append(intro)
+        if responsibilities_raw:
+            desc_parts.append(f"주요업무: {responsibilities_raw}")
+        if requirements_raw:
+            desc_parts.append(f"자격요건: {requirements_raw}")
+        if preferred_raw:
+            desc_parts.append(f"우대사항: {preferred_raw}")
+        if benefits:
+            desc_parts.append(f"복리후생: {benefits}")
 
         description_raw = "\n\n".join(desc_parts)
 
         # Extract skill tags
         skill_tags = [tag.get("title", "") for tag in job.get("skill_tags", [])]
+        tech_stack_raw = ", ".join(skill_tags) if skill_tags else None
         if skill_tags:
             description_raw += f"\n\n기술스택: {', '.join(skill_tags)}"
 
@@ -185,4 +196,10 @@ class WantedAPICrawler(BaseCrawler):
             source_url=WANTED_JOB_URL.format(job_id=job_id),
             location=address.get("full_location", job.get("location", "")),
             tags=skill_tags,
+            requirements_raw=requirements_raw,
+            preferred_raw=preferred_raw,
+            responsibilities_raw=responsibilities_raw,
+            tech_stack_raw=tech_stack_raw,
+            benefits_raw=benefits,
+            hiring_process=hiring_process,
         )

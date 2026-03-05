@@ -145,19 +145,30 @@ class JumpitCrawler(BaseCrawler):
         result = data.get("result", {})
         company = result.get("company", {})
 
+        # 구조화 필드 추출
+        requirements_raw = result.get("qualifications")
+        preferred_raw = result.get("preferredQualifications")
+        responsibilities_raw = result.get("responsibility")
+        benefits_raw = result.get("welfare") or result.get("benefits")
+        hiring_process = result.get("process")
+        employment_type = result.get("employmentType") or result.get("career")
+
         # Build description
         desc_parts = []
-        if result.get("qualifications"):
-            desc_parts.append(f"자격요건: {result['qualifications']}")
-        if result.get("preferredQualifications"):
-            desc_parts.append(f"우대사항: {result['preferredQualifications']}")
-        if result.get("responsibility"):
-            desc_parts.append(f"주요업무: {result['responsibility']}")
+        if requirements_raw:
+            desc_parts.append(f"자격요건: {requirements_raw}")
+        if preferred_raw:
+            desc_parts.append(f"우대사항: {preferred_raw}")
+        if responsibilities_raw:
+            desc_parts.append(f"주요업무: {responsibilities_raw}")
+        if benefits_raw:
+            desc_parts.append(f"복리후생: {benefits_raw}")
 
         description_raw = "\n\n".join(desc_parts)
 
         # Extract tech stacks
         tech_stacks = [ts.get("stack", "") for ts in result.get("techStacks", [])]
+        tech_stack_raw = ", ".join(tech_stacks) if tech_stacks else None
         if tech_stacks:
             description_raw += f"\n\n기술스택: {', '.join(tech_stacks)}"
 
@@ -174,4 +185,11 @@ class JumpitCrawler(BaseCrawler):
             source_url=JUMPIT_JOB_URL.format(job_id=job_id),
             location=result.get("workingPlace", ""),
             tags=tech_stacks,
+            requirements_raw=requirements_raw,
+            preferred_raw=preferred_raw,
+            responsibilities_raw=responsibilities_raw,
+            tech_stack_raw=tech_stack_raw,
+            benefits_raw=benefits_raw,
+            hiring_process=hiring_process,
+            employment_type=employment_type,
         )

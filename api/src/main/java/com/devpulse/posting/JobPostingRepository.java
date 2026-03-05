@@ -83,4 +83,23 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
            "WHERE jp.company.id = :companyId " +
            "GROUP BY jp.positionType")
     List<Object[]> countByCompanyIdGroupByPositionType(@Param("companyId") Long companyId);
+
+    @Query(value = """
+        SELECT req->>'normalized' AS normalized,
+               req->>'category' AS category,
+               COUNT(*) AS cnt
+        FROM job_posting jp,
+             jsonb_array_elements(jp.normalized_requirements) AS req
+        WHERE (:hasPosition = false OR jp.position_type = :positionType)
+          AND jp.status = 'ACTIVE'
+          AND jsonb_array_length(jp.normalized_requirements) > 0
+        GROUP BY req->>'normalized', req->>'category'
+        ORDER BY cnt DESC
+        """, nativeQuery = true)
+    List<Object[]> findNormalizedRequirementAggregation(
+            @Param("hasPosition") boolean hasPosition,
+            @Param("positionType") String positionType
+    );
+
+    long countByPositionTypeAndStatus(PositionType positionType, PostingStatus status);
 }

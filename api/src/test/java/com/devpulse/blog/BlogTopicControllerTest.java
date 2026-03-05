@@ -31,6 +31,9 @@ class BlogTopicControllerTest {
     @MockitoBean
     private BlogTopicTrendService blogTopicTrendService;
 
+    @MockitoBean
+    private TechBlogPostRepository techBlogPostRepository;
+
     @Test
     @DisplayName("GET /api/v1/analysis/blog-topics/company/{id} — 회사별 블로그 토픽")
     void getCompanyBlogTopics() throws Exception {

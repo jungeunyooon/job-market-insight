@@ -67,6 +67,9 @@ services:
       DB_USER: devpulse
       DB_PASSWORD: devpulse1234
       OLLAMA_HOST: http://ollama:11434
+      SARAMIN_API_KEY: ${SARAMIN_API_KEY:-}
+      WORK24_API_KEY: ${WORK24_API_KEY:-}
+      BLOG_FETCH_FULL_CONTENT: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +94,9 @@ services:
       DB_USER: devpulse
       DB_PASSWORD: devpulse1234
       OLLAMA_HOST: http://ollama:11434
+      SARAMIN_API_KEY: ${SARAMIN_API_KEY:-}
+      WORK24_API_KEY: ${WORK24_API_KEY:-}
+      BLOG_FETCH_FULL_CONTENT: "true"
     depends_on:
       postgres:
         condition: service_healthy

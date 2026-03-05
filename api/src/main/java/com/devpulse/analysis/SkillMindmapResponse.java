@@ -7,7 +7,7 @@ public record SkillMindmapResponse(
     String skillName,
     String nameKo,
     String category,
-    List<String> allKeywords,
+    List<KeywordNode> allKeywords,
     Map<String, List<KeywordNode>> keywordGroups,
     int totalPostingMentions
 ) {

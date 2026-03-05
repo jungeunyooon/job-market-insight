@@ -1,8 +1,14 @@
 package com.devpulse.trend;
 
+import com.devpulse.blog.BlogSkillRepository;
 import com.devpulse.trend.BuzzHiringGapResponse;
 import com.devpulse.trend.BuzzHiringGapResponse.BuzzHiringGap;
 import com.devpulse.trend.BuzzHiringGapResponse.Classification;
+import com.devpulse.trend.SnapshotHistoryResponse;
+import com.devpulse.trend.SnapshotHistoryResponse.SnapshotPoint;
+import com.devpulse.trend.ThreeAxisResponse;
+import com.devpulse.trend.ThreeAxisResponse.ThreeAxisClassification;
+import com.devpulse.trend.ThreeAxisResponse.ThreeAxisItem;
 import com.devpulse.trend.TrendRankingResponse;
 import com.devpulse.trend.TrendRankingResponse.TrendRankItem;
 import com.devpulse.company.CompanyCategory;
@@ -26,9 +32,12 @@ public class BuzzHiringGapService {
 
     private static final double HIGH_TREND_THRESHOLD = 5.0;  // >= 5% of trend posts
     private static final double HIGH_JOB_THRESHOLD = 10.0;   // >= 10% of job postings
+    private static final double HIGH_BLOG_THRESHOLD = 5.0;   // >= 5% of blog posts
 
     private final TrendSkillRepository trendSkillRepository;
     private final PostingSkillRepository postingSkillRepository;
+    private final BlogSkillRepository blogSkillRepository;
+    private final TrendSnapshotRepository trendSnapshotRepository;
 
     public TrendRankingResponse getTrendRanking(TrendSource source, int days, int topN) {
         LocalDateTime since = LocalDateTime.now().minusDays(days);
@@ -113,6 +122,110 @@ public class BuzzHiringGapService {
         return new BuzzHiringGapResponse(
                 LocalDate.now(), period, "ALL", totalTrendPosts, totalJobPostings, gaps
         );
+    }
+
+    public ThreeAxisResponse analyzeThreeAxis(int topN, int days) {
+        LocalDateTime since = LocalDateTime.now().minusDays(days);
+
+        // 1. Trend
+        List<Object[]> trendRows = trendSkillRepository.findSkillRankingSince(since);
+        long totalTrendPosts = trendSkillRepository.countTrendPostsSince(since);
+
+        // 2. Job postings
+        List<Object[]> jobRows = postingSkillRepository.findSkillRankingWithFilters(
+                false, PositionType.BACKEND, false, PostingStatus.ACTIVE, Arrays.asList(CompanyCategory.values())
+        );
+        long totalJobPostings = postingSkillRepository.countPostingsWithFilters(
+                false, PositionType.BACKEND, false, PostingStatus.ACTIVE, Arrays.asList(CompanyCategory.values())
+        );
+
+        // 3. Blog
+        List<Object[]> blogRows = blogSkillRepository.findSkillRankingSince(since);
+        long totalBlogPosts = blogSkillRepository.countBlogPostsSince(since);
+
+        Map<String, long[]> trendMap = buildRankMap(trendRows);
+        Map<String, long[]> jobMap = buildRankMap(jobRows);
+        Map<String, long[]> blogMap = buildRankMap(blogRows);
+
+        Set<String> allSkills = new LinkedHashSet<>();
+        allSkills.addAll(trendMap.keySet());
+        allSkills.addAll(jobMap.keySet());
+        allSkills.addAll(blogMap.keySet());
+
+        List<ThreeAxisItem> items = new ArrayList<>();
+        for (String skill : allSkills) {
+            long[] trendData = trendMap.getOrDefault(skill, new long[]{0, 0});
+            long[] jobData = jobMap.getOrDefault(skill, new long[]{0, 0});
+            long[] blogData = blogMap.getOrDefault(skill, new long[]{0, 0});
+
+            double trendPct = totalTrendPosts > 0 ? (trendData[0] * 100.0) / totalTrendPosts : 0;
+            double jobPct = totalJobPostings > 0 ? (jobData[0] * 100.0) / totalJobPostings : 0;
+            double blogPct = totalBlogPosts > 0 ? (blogData[0] * 100.0) / totalBlogPosts : 0;
+
+            ThreeAxisClassification classification = classifyThreeAxis(trendPct, jobPct, blogPct);
+            String insight = generateThreeAxisInsight(skill, classification);
+
+            items.add(new ThreeAxisItem(
+                    skill,
+                    trendData[0], (int) trendData[1],
+                    blogData[0], (int) blogData[1],
+                    Math.round(blogPct * 10) / 10.0,
+                    jobData[0], (int) jobData[1],
+                    Math.round(jobPct * 10) / 10.0,
+                    classification, insight
+            ));
+        }
+
+        items.sort((a, b) -> Long.compare(
+                b.trendMentions() + b.jobPostings() + b.blogMentions(),
+                a.trendMentions() + a.jobPostings() + a.blogMentions()
+        ));
+        if (items.size() > topN) {
+            items = items.subList(0, topN);
+        }
+
+        String period = "LAST_" + days + "_DAYS";
+        return new ThreeAxisResponse(LocalDate.now(), period, totalTrendPosts, totalBlogPosts, totalJobPostings, items);
+    }
+
+    public SnapshotHistoryResponse getSnapshotHistory(TrendSource source, String skillName, int days) {
+        LocalDateTime from = LocalDateTime.now().minusDays(days);
+        LocalDateTime to = LocalDateTime.now();
+
+        List<TrendSnapshot> snapshots = trendSnapshotRepository
+                .findBySourceAndSkillNameAndSnapshotAtBetween(source, skillName, from, to);
+
+        List<SnapshotPoint> history = snapshots.stream()
+                .map(s -> new SnapshotPoint(s.getSnapshotAt(), s.getRank(), s.getMentionCount()))
+                .toList();
+
+        return new SnapshotHistoryResponse(source.name(), skillName, history);
+    }
+
+    ThreeAxisClassification classifyThreeAxis(double trendPct, double jobPct, double blogPct) {
+        boolean highTrend = trendPct >= HIGH_TREND_THRESHOLD;
+        boolean highJob = jobPct >= HIGH_JOB_THRESHOLD;
+        boolean highBlog = blogPct >= HIGH_BLOG_THRESHOLD;
+
+        if (highTrend && highJob) return ThreeAxisClassification.ADOPTED;
+        if (highTrend && !highJob && !highBlog) return ThreeAxisClassification.HYPE_ONLY;
+        if (highTrend && !highJob) return ThreeAxisClassification.OVERHYPED;
+        if (!highTrend && highJob && highBlog) return ThreeAxisClassification.PRACTICAL;
+        if (highJob) return ThreeAxisClassification.ESTABLISHED;
+        if (highBlog) return ThreeAxisClassification.BLOG_DRIVEN;
+        return ThreeAxisClassification.EMERGING;
+    }
+
+    private String generateThreeAxisInsight(String skill, ThreeAxisClassification classification) {
+        return switch (classification) {
+            case ADOPTED -> skill + ": 커뮤니티 관심과 채용 수요 모두 높음";
+            case OVERHYPED -> skill + ": 커뮤니티 관심 대비 채용 수요 낮음 (블로그에서 일부 언급)";
+            case ESTABLISHED -> skill + ": 더 이상 화제가 아니지만 채용 시장의 기본기";
+            case EMERGING -> skill + ": 태동기 — 커뮤니티, 채용, 블로그 모두 아직 소수";
+            case PRACTICAL -> skill + ": 조용히 쓰이는 기술 — 채용과 실무 블로그에서 활발";
+            case HYPE_ONLY -> skill + ": 과대광고 — 커뮤니티 관심만 높고 실무 채택 미미";
+            case BLOG_DRIVEN -> skill + ": 블로그 주도 — 실무 글에서 화제지만 채용 수요는 낮음";
+        };
     }
 
     private Map<String, long[]> buildRankMap(List<Object[]> rows) {

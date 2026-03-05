@@ -160,4 +160,98 @@
 - [x] **테스트 191개 통과 (Python) — 0 regression**
 - [x] **Java 프로덕션 + 테스트 컴파일 성공**
 
+---
+
+## 블로그 URL + LLM 키워드 추출 + 요구사항 정규화 (2026-03-05)
+
+### US-014: 블로그 포스트 목록 API + URL 노출
+- [x] `BlogPostListResponse` DTO 생성 (id, title, url, summary, companyName, publishedAt)
+- [x] `GET /api/v1/analysis/blog-topics/posts` 페이지네이션 엔드포인트 추가
+- [x] `TechBlogPostRepository`에 페이지네이션 쿼리 추가
+- [x] 프론트엔드 `BlogTrend.tsx`에 최근 포스트 섹션 추가 (클릭 가능한 외부 링크)
+- [x] `BlogPostListResponse` TypeScript 인터페이스 + `getBlogPosts` API 함수 추가
+
+### US-015: LLM 키워드 추출 (ADR-012)
+- [x] `batch/nlp/llm_keyword_extractor.py` — Ollama API로 심층 기술 키워드 추출
+- [x] 자격요건/우대사항에서 '대규모 트래픽 처리', '캐싱 전략 설계' 등 컨텍스트 키워드 추출
+- [x] V5 마이그레이션: `job_posting.llm_keywords` JSONB 컬럼 추가
+- [x] `sync.py`에서 공고 동기화 시 LLM 키워드 자동 추출/저장
+- [x] 10개 테스트 통과 (Ollama mock)
+
+### US-016: LLM 요구사항 정규화 (ADR-013)
+- [x] `batch/nlp/llm_normalizer.py` — Ollama API로 자격요건 정규화
+- [x] 다른 표현 동일 요구사항 통일 (예: 'Java 3년 이상' → 'Java 실무 경험')
+- [x] V5 마이그레이션: `job_posting.normalized_requirements` JSONB 컬럼 추가
+- [x] `GET /api/v1/analysis/normalized-requirements` 집계 엔드포인트 추가
+- [x] `sync.py`에서 공고 동기화 시 자동 정규화/저장
+- [x] 10개 테스트 통과 (Ollama mock)
+
+### US-017: 테스트 및 문서화
+- [x] Python 272개 테스트 통과 (0 실패)
+- [x] Java 컴파일 + 테스트 수정 (PostingControllerTest, AnalysisControllerTest, BlogTopicControllerTest, AnalysisServiceTest)
+- [x] PROGRESS.md, DECISIONS.md 업데이트
+
+### 동적 키워드 학습 (ADR-014)
+- [x] `_update_skill_keywords_from_llm()` — LLM 추출 키워드를 스킬별로 자동 병합
+- [x] 공고 동기화 시 매칭된 스킬에 새 키워드 자동 추가 (대소문자 무관 중복 제거)
+- [x] 3글자 미만 키워드 필터링, 다중 스킬 분배
+- [x] `test_dynamic_keywords.py` 8개 테스트 통과
+- [x] **Python 280개 테스트 통과 (0 실패)**
+- [x] **Java 컴파일 성공**
+
+### 블로그 원문 크롤링 (US-018, US-019)
+- [x] `tech_blog.py`에 `fetch_full_content` 옵션 구현 (RSS → 원문 HTML 크롤링)
+- [x] `_fetch_page_content()`: article/main 셀렉터, PII 마스킹, 100자 미만 필터
+- [x] `_enrich_with_full_content()`: RSS 요약보다 긴 원문으로 교체, 실패 시 fallback
+- [x] `test_tech_blog_crawler.py`에 8개 테스트 추가 (총 16개)
+- [x] `main.py`: `BLOG_FETCH_FULL_CONTENT` 환경변수로 활성화
+- [x] `docker-compose.yml`: batch/scheduler에 `BLOG_FETCH_FULL_CONTENT=true` 설정
+- [x] **Python 288개 테스트 통과 (0 실패)**
+
 - [ ] 기술 블로그 시리즈
+
+---
+
+## 블로그 LLM 키워드 + 트렌드 스냅샷 + 3축 분석 (2026-03-05)
+
+### Part 1: 블로그 LLM 키워드 추출 (ADR-015)
+- [x] `batch/nlp/llm_blog_keyword_extractor.py` — Ollama API로 블로그 콘텐츠에서 기술 키워드 추출
+- [x] 프롬프트: architecture, implementation, devops, testing 등 맥락 분류
+- [x] `sync_blog_posts()`에서 LLM 키워드 자동 추출/저장 + 동적 학습 피드백
+- [x] V6 마이그레이션: `tech_blog_post.llm_keywords` JSONB 컬럼 추가
+- [x] `TechBlogPost` JPA 엔티티에 `llmKeywords` 필드 추가
+- [x] 13개 테스트 통과 (Ollama mock)
+
+### Part 2: 트렌드 Top N 스냅샷 (ADR-016)
+- [x] V6 마이그레이션: `trend_snapshot` 테이블 (source, skill_name, rank, mention_count, snapshot_at)
+- [x] `_save_trend_snapshot()` — sync 완료 후 스킬별 언급 수 집계 → 스냅샷 INSERT
+- [x] `TrendSnapshot` JPA 엔티티 + `TrendSnapshotRepository`
+- [x] `GET /api/v1/analysis/snapshot-history?source=GEEKNEWS&skill=React&days=30`
+- [x] 8개 테스트 통과 (스냅샷 저장 로직)
+
+### Part 3: 3축 분석 — Buzz + Hiring + Blog (ADR-017)
+- [x] `ThreeAxisResponse` DTO (7가지 분류: ADOPTED, OVERHYPED, ESTABLISHED, EMERGING, PRACTICAL, HYPE_ONLY, BLOG_DRIVEN)
+- [x] `BlogSkillRepository.findSkillRankingSince()` — 시간 기반 블로그 스킬 랭킹
+- [x] `BuzzHiringGapService.analyzeThreeAxis()` — 3축 분류 로직
+- [x] `GET /api/v1/analysis/three-axis?topN=20&days=30` 엔드포인트
+- [x] 기존 `/buzz-vs-hiring` 하위호환 유지
+- [x] `BuzzHiringGapServiceTest` 확장 — 3축 분류 매트릭스 + 경계값 + 통합 테스트
+
+### Swagger 문서화 + API.md
+- [x] 전체 16개 엔드포인트에 `@Operation` + `@Parameter` Swagger 어노테이션 추가
+- [x] `OpenApiConfig` 설명/서버 URL 보강
+- [x] `docs/API.md` 독립 마크다운 문서 생성 (16 endpoints, 파라미터, 응답 예시, enum 정의)
+
+### 프론트엔드: 3축 분석 + 트렌드 히스토리 페이지
+- [x] `ThreeAxisAnalysis.tsx` — 버블 산점도 (X=트렌드 Buzz, Y=채용 수요, 버블=블로그), 7분류 필터, 상세 테이블
+- [x] `TrendHistory.tsx` — 스킬별 순위 변화 라인 차트, 소스/기간 선택, 스냅샷 현황 테이블
+- [x] `types.ts` — ThreeAxisClassification, ThreeAxisItem, ThreeAxisResponse, SnapshotPoint, SnapshotHistoryResponse 추가
+- [x] `endpoints.ts` — getThreeAxisAnalysis, getSnapshotHistory API 함수 추가
+- [x] `Sidebar.tsx` — 3축 분석, 트렌드 히스토리 네비게이션 추가 (총 10개 페이지)
+- [x] `App.tsx` — `/three-axis`, `/trend-history` 라우트 추가
+- [x] `npm run build` 성공
+
+### 테스트 현황
+- [x] Python 13개 신규 테스트 통과 (블로그 LLM + 트렌드 스냅샷)
+- [x] Java 컴파일 + 테스트 성공 (BuzzHiringGapServiceTest 확장)
+- [x] 프론트엔드 빌드 성공 (TypeScript 0 errors)

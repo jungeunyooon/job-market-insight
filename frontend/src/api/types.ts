@@ -31,6 +31,16 @@ export interface PostingDetailResponse {
   positionType: PositionType
   experienceLevel: string
   descriptionRaw: string
+  requirementsRaw: string | null
+  preferredRaw: string | null
+  responsibilitiesRaw: string | null
+  techStackRaw: string | null
+  benefitsRaw: string | null
+  companySize: string | null
+  teamInfo: string | null
+  hiringProcess: string | null
+  employmentType: string | null
+  workType: string | null
   location: string
   salaryMin: number | null
   salaryMax: number | null
@@ -145,6 +155,47 @@ export interface BuzzHiringGapResponse {
   gaps: BuzzHiringGap[]
 }
 
+// --- Three-Axis Analysis ---
+export type ThreeAxisClassification =
+  | 'ADOPTED' | 'OVERHYPED' | 'ESTABLISHED' | 'EMERGING'
+  | 'PRACTICAL' | 'HYPE_ONLY' | 'BLOG_DRIVEN'
+
+export interface ThreeAxisItem {
+  skill: string
+  trendMentions: number
+  trendRank: number
+  blogMentions: number
+  blogRank: number
+  blogPercentage: number
+  jobPostings: number
+  jobRank: number
+  jobPercentage: number
+  classification: ThreeAxisClassification
+  insight: string
+}
+
+export interface ThreeAxisResponse {
+  snapshotDate: string
+  period: string
+  totalTrendPosts: number
+  totalBlogPosts: number
+  totalJobPostings: number
+  items: ThreeAxisItem[]
+}
+
+// --- Snapshot History ---
+export interface SnapshotPoint {
+  snapshotAt: string
+  rank: number
+  mentionCount: number
+}
+
+export interface SnapshotHistoryResponse {
+  source: string
+  skill: string
+  history: SnapshotPoint[]
+}
+
 // --- Blog ---
 export interface BlogTopicItem {
   rank: number
@@ -177,6 +228,16 @@ export interface SkillCompanyDistributionResponse {
   skillName: string
   period: string
   companies: { company: string; postCount: number }[]
+}
+
+// --- Blog Post List ---
+export interface BlogPostListResponse {
+  id: number
+  title: string
+  url: string
+  summary: string | null
+  companyName: string
+  publishedAt: string
 }
 
 // --- Skill Keyword ---

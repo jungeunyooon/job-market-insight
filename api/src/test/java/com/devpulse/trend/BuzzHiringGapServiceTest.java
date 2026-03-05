@@ -1,10 +1,14 @@
 package com.devpulse.trend;
 
+import com.devpulse.blog.BlogSkillRepository;
 import com.devpulse.trend.BuzzHiringGapResponse;
 import com.devpulse.trend.BuzzHiringGapResponse.Classification;
+import com.devpulse.trend.ThreeAxisResponse;
+import com.devpulse.trend.ThreeAxisResponse.ThreeAxisClassification;
 import com.devpulse.trend.TrendRankingResponse;
 import com.devpulse.posting.PostingSkillRepository;
 import com.devpulse.trend.TrendSkillRepository;
+import com.devpulse.trend.TrendSnapshotRepository;
 import com.devpulse.trend.TrendSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -28,6 +32,12 @@ class BuzzHiringGapServiceTest {
 
     @Mock
     private PostingSkillRepository postingSkillRepository;
+
+    @Mock
+    private BlogSkillRepository blogSkillRepository;
+
+    @Mock
+    private TrendSnapshotRepository trendSnapshotRepository;
 
     @InjectMocks
     private BuzzHiringGapService service;
@@ -142,6 +152,108 @@ class BuzzHiringGapServiceTest {
             // Exactly at threshold
             assertThat(service.classify(5.0, 10.0)).isEqualTo(Classification.ADOPTED);
             assertThat(service.classify(4.9, 9.9)).isEqualTo(Classification.EMERGING);
+        }
+    }
+
+    @Nested
+    @DisplayName("classifyThreeAxis")
+    class ClassifyThreeAxis {
+
+        @Test
+        @DisplayName("7가지 3축 분류 매트릭스")
+        void classifyThreeAxisMatrix() {
+            // trend HIGH + job HIGH → ADOPTED (blog 무관)
+            assertThat(service.classifyThreeAxis(10.0, 50.0, 8.0)).isEqualTo(ThreeAxisClassification.ADOPTED);
+            assertThat(service.classifyThreeAxis(10.0, 50.0, 1.0)).isEqualTo(ThreeAxisClassification.ADOPTED);
+
+            // trend HIGH + job LOW + blog LOW → HYPE_ONLY
+            assertThat(service.classifyThreeAxis(10.0, 3.0, 2.0)).isEqualTo(ThreeAxisClassification.HYPE_ONLY);
+
+            // trend HIGH + job LOW + blog HIGH → OVERHYPED
+            assertThat(service.classifyThreeAxis(10.0, 3.0, 8.0)).isEqualTo(ThreeAxisClassification.OVERHYPED);
+
+            // trend LOW + job HIGH + blog HIGH → PRACTICAL
+            assertThat(service.classifyThreeAxis(2.0, 50.0, 8.0)).isEqualTo(ThreeAxisClassification.PRACTICAL);
+
+            // trend LOW + job HIGH + blog LOW → ESTABLISHED
+            assertThat(service.classifyThreeAxis(2.0, 50.0, 2.0)).isEqualTo(ThreeAxisClassification.ESTABLISHED);
+
+            // trend LOW + job LOW + blog HIGH → BLOG_DRIVEN
+            assertThat(service.classifyThreeAxis(2.0, 3.0, 8.0)).isEqualTo(ThreeAxisClassification.BLOG_DRIVEN);
+
+            // trend LOW + job LOW + blog LOW → EMERGING
+            assertThat(service.classifyThreeAxis(2.0, 3.0, 2.0)).isEqualTo(ThreeAxisClassification.EMERGING);
+        }
+
+        @Test
+        @DisplayName("3축 경계값 테스트")
+        void classifyThreeAxisBoundary() {
+            // 정확히 threshold에서
+            assertThat(service.classifyThreeAxis(5.0, 10.0, 5.0)).isEqualTo(ThreeAxisClassification.ADOPTED);
+            assertThat(service.classifyThreeAxis(4.9, 9.9, 4.9)).isEqualTo(ThreeAxisClassification.EMERGING);
+            assertThat(service.classifyThreeAxis(4.9, 10.0, 5.0)).isEqualTo(ThreeAxisClassification.PRACTICAL);
+            assertThat(service.classifyThreeAxis(4.9, 9.9, 5.0)).isEqualTo(ThreeAxisClassification.BLOG_DRIVEN);
+        }
+    }
+
+    @Nested
+    @DisplayName("analyzeThreeAxis")
+    class AnalyzeThreeAxis {
+
+        @Test
+        @DisplayName("3축 분석 — PRACTICAL, HYPE_ONLY, BLOG_DRIVEN 분류")
+        void threeAxisAnalysis() {
+            // Trend: LangChain 높음, Java/Spring 낮음
+            List<Object[]> trendRows = List.of(
+                    new Object[]{"LangChain", 47L},
+                    new Object[]{"Java", 5L},
+                    new Object[]{"Spring", 3L}
+            );
+            given(trendSkillRepository.findSkillRankingSince(any())).willReturn(trendRows);
+            given(trendSkillRepository.countTrendPostsSince(any())).willReturn(247L);
+
+            // Job: Java 높음, Spring 높음, LangChain 낮음
+            List<Object[]> jobRows = List.of(
+                    new Object[]{"Java", 465L, 350L},
+                    new Object[]{"Spring", 400L, 300L},
+                    new Object[]{"LangChain", 16L, 5L}
+            );
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), any(), anyBoolean(), any(), anyList()))
+                    .willReturn(jobRows);
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), any(), anyBoolean(), any(), anyList()))
+                    .willReturn(523L);
+
+            // Blog: Java 높음, React 높음 (blog only), LangChain 낮음
+            List<Object[]> blogRows = List.of(
+                    new Object[]{"Java", 30L},
+                    new Object[]{"Spring", 28L},
+                    new Object[]{"React", 25L},
+                    new Object[]{"LangChain", 3L}
+            );
+            given(blogSkillRepository.findSkillRankingSince(any())).willReturn(blogRows);
+            given(blogSkillRepository.countBlogPostsSince(any())).willReturn(200L);
+
+            ThreeAxisResponse result = service.analyzeThreeAxis(20, 30);
+
+            assertThat(result.totalTrendPosts()).isEqualTo(247);
+            assertThat(result.totalBlogPosts()).isEqualTo(200);
+            assertThat(result.totalJobPostings()).isEqualTo(523);
+            assertThat(result.items()).isNotEmpty();
+
+            // Java: trend LOW, job HIGH, blog HIGH → PRACTICAL
+            var java = result.items().stream()
+                    .filter(i -> i.skill().equals("Java")).findFirst().orElseThrow();
+            assertThat(java.classification()).isEqualTo(ThreeAxisClassification.PRACTICAL);
+
+            // LangChain: trend HIGH, job LOW, blog LOW → HYPE_ONLY
+            var langchain = result.items().stream()
+                    .filter(i -> i.skill().equals("LangChain")).findFirst().orElseThrow();
+            assertThat(langchain.classification()).isEqualTo(ThreeAxisClassification.HYPE_ONLY);
+
+            // React: trend LOW, job LOW, blog HIGH → BLOG_DRIVEN
+            var react = result.items().stream()
+                    .filter(i -> i.skill().equals("React")).findFirst().orElseThrow();
+            assertThat(react.classification()).isEqualTo(ThreeAxisClassification.BLOG_DRIVEN);
         }
     }
 }

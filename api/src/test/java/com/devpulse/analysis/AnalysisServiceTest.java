@@ -5,6 +5,7 @@ import com.devpulse.company.Company;
 import com.devpulse.company.CompanyCategory;
 import com.devpulse.company.CompanyRepository;
 import com.devpulse.posting.*;
+import com.devpulse.skill.SkillRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +34,9 @@ class AnalysisServiceTest {
 
     @Mock
     private CompanyRepository companyRepository;
+
+    @Mock
+    private SkillRepository skillRepository;
 
     @InjectMocks
     private AnalysisService analysisService;
@@ -104,11 +109,15 @@ class AnalysisServiceTest {
 
         @Test
         @DisplayName("회사 프로필 조회 — 스킬 + 포지션 분포")
-        void companyProfile_success() {
+        void companyProfile_success() throws Exception {
             Company company = Company.builder()
                     .name("네이버")
                     .category(CompanyCategory.BIGTECH)
                     .build();
+            // Set id via reflection (JPA @GeneratedValue field)
+            Field idField = Company.class.getDeclaredField("id");
+            idField.setAccessible(true);
+            idField.set(company, 1L);
             given(companyRepository.findById(1L)).willReturn(Optional.of(company));
             given(jobPostingRepository.countByCompanyId(1L)).willReturn(20L);
             given(postingSkillRepository.findSkillRankingByCompany(1L))

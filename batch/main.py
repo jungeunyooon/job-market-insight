@@ -28,14 +28,20 @@ logger = logging.getLogger(__name__)
 def run_job_crawlers() -> dict[str, list]:
     from crawlers.greenhouse import GreenhouseCrawler
     from crawlers.jumpit import JumpitCrawler
+    from crawlers.naver_career import NaverCareerCrawler
+    from crawlers.saramin import SaraminAPICrawler
     from crawlers.superrookie import SuperRookieCrawler
     from crawlers.wanted import WantedAPICrawler
+    from crawlers.work24 import Work24Crawler
 
     crawlers = [
         ("WantedAPICrawler", WantedAPICrawler()),
         ("JumpitCrawler", JumpitCrawler()),
         ("GreenhouseCrawler", GreenhouseCrawler()),
         ("SuperRookieCrawler", SuperRookieCrawler()),
+        ("NaverCareerCrawler", NaverCareerCrawler()),
+        ("SaraminAPICrawler", SaraminAPICrawler()),
+        ("Work24Crawler", Work24Crawler()),
     ]
 
     results: dict[str, list] = {}
@@ -52,9 +58,11 @@ def run_job_crawlers() -> dict[str, list]:
 
 
 def run_blog_crawlers() -> dict[str, list]:
+    import os
     from crawlers.tech_blog import TechBlogCrawler
 
-    crawlers = [("TechBlogCrawler", TechBlogCrawler())]
+    fetch_full = os.environ.get("BLOG_FETCH_FULL_CONTENT", "").lower() in ("true", "1", "yes")
+    crawlers = [("TechBlogCrawler", TechBlogCrawler(fetch_full_content=fetch_full))]
 
     results: dict[str, list] = {}
     for name, crawler in crawlers:
@@ -262,12 +270,15 @@ def cmd_sync_trends() -> None:
 def cmd_sync_all() -> None:
     from crawlers.greenhouse import GreenhouseCrawler
     from crawlers.jumpit import JumpitCrawler
+    from crawlers.naver_career import NaverCareerCrawler
+    from crawlers.saramin import SaraminAPICrawler
     from crawlers.superrookie import SuperRookieCrawler
     from crawlers.tech_blog import TechBlogCrawler
     from crawlers.trend.devto import DevToCrawler
     from crawlers.trend.geeknews import GeekNewsCrawler
     from crawlers.trend.hackernews import HackerNewsCrawler
     from crawlers.wanted import WantedAPICrawler
+    from crawlers.work24 import Work24Crawler
 
     sync = DevPulseSync()
     try:
@@ -286,6 +297,9 @@ def cmd_sync_all() -> None:
             ("JumpitCrawler", JumpitCrawler()),
             ("GreenhouseCrawler", GreenhouseCrawler()),
             ("SuperRookieCrawler", SuperRookieCrawler()),
+            ("NaverCareerCrawler", NaverCareerCrawler()),
+            ("SaraminAPICrawler", SaraminAPICrawler()),
+            ("Work24Crawler", Work24Crawler()),
         ]
         job_total = job_inserted = job_updated = job_failed = 0
         for name, crawler in job_crawlers:
@@ -308,8 +322,10 @@ def cmd_sync_all() -> None:
 
         # --- Step 2/3: blogs ---
         print("\n[sync-all] Step 2/3: blogs")
+        import os
+        fetch_full = os.environ.get("BLOG_FETCH_FULL_CONTENT", "").lower() in ("true", "1", "yes")
         blog_crawlers = [
-            ("TechBlogCrawler", TechBlogCrawler()),
+            ("TechBlogCrawler", TechBlogCrawler(fetch_full_content=fetch_full)),
         ]
         blog_total = blog_inserted = blog_updated = blog_failed = 0
         for name, crawler in blog_crawlers:

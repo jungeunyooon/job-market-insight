@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface BlogSkillRepository extends JpaRepository<BlogSkill, Long> {
@@ -45,4 +46,15 @@ public interface BlogSkillRepository extends JpaRepository<BlogSkill, Long> {
             @Param("fromYear") Integer fromYear,
             @Param("toYear") Integer toYear
     );
+
+    @Query("SELECT bs.skill.name, COUNT(DISTINCT bs.blogPost.id) as cnt " +
+           "FROM BlogSkill bs " +
+           "WHERE bs.blogPost.publishedAt >= :since " +
+           "GROUP BY bs.skill.name " +
+           "ORDER BY cnt DESC")
+    List<Object[]> findSkillRankingSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COUNT(DISTINCT bs.blogPost.id) FROM BlogSkill bs " +
+           "WHERE bs.blogPost.publishedAt >= :since")
+    long countBlogPostsSince(@Param("since") LocalDateTime since);
 }

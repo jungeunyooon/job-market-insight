@@ -134,6 +134,45 @@ class GreenhouseCrawler(BaseCrawler):
             logger.error(f"Request failed for {token}/{job_id}: {e}")
             return None
 
+    def _extract_sections_from_html(self, content_html: str) -> dict[str, str | None]:
+        """HTML 콘텐츠에서 자격요건/우대사항/담당업무 섹션을 분리 추출한다."""
+        text = strip_html(content_html)
+        sections: dict[str, str | None] = {
+            "requirements_raw": None,
+            "preferred_raw": None,
+            "responsibilities_raw": None,
+            "benefits_raw": None,
+        }
+
+        # 섹션 헤더 패턴
+        patterns = {
+            "requirements_raw": r"(?:자격요건|자격\s*조건|필수\s*요건|Requirements?|Qualifications?|What\s+you['']?ll\s+need)",
+            "preferred_raw": r"(?:우대\s*사항|우대\s*조건|Preferred|Nice\s+to\s+have|Bonus|Plus)",
+            "responsibilities_raw": r"(?:담당\s*업무|주요\s*업무|하는\s*일|What\s+you['']?ll\s+do|Responsibilities?|Role)",
+            "benefits_raw": r"(?:복리\s*후생|혜택|근무\s*조건|Benefits?|Perks|What\s+we\s+offer)",
+        }
+
+        all_headers = "|".join(f"({p})" for p in patterns.values())
+        splits = re.split(rf"({all_headers})", text, flags=re.IGNORECASE)
+
+        current_key: str | None = None
+        for chunk in splits:
+            if not chunk or not chunk.strip():
+                continue
+            chunk_stripped = chunk.strip()
+            matched_key = None
+            for key, pattern in patterns.items():
+                if re.match(pattern, chunk_stripped, re.IGNORECASE):
+                    matched_key = key
+                    break
+            if matched_key:
+                current_key = matched_key
+            elif current_key:
+                existing = sections[current_key] or ""
+                sections[current_key] = (existing + "\n" + chunk_stripped).strip()
+
+        return sections
+
     def _detail_to_posting(self, token: str, company_name: str, job: dict) -> RawJobPosting | None:
         """Fetch detail and convert to RawJobPosting."""
         job_id = job.get("id")
@@ -146,6 +185,9 @@ class GreenhouseCrawler(BaseCrawler):
 
         content_html = detail.get("content", "")
         description_raw = strip_html(content_html)
+
+        # 구조화 필드 추출
+        sections = self._extract_sections_from_html(content_html)
 
         # Mask personal info
         description_raw = re.sub(r"\S+@\S+", "[EMAIL]", description_raw)
@@ -161,4 +203,8 @@ class GreenhouseCrawler(BaseCrawler):
             source_url=job.get("absolute_url", ""),
             location=location,
             tags=[],
+            requirements_raw=sections["requirements_raw"],
+            preferred_raw=sections["preferred_raw"],
+            responsibilities_raw=sections["responsibilities_raw"],
+            benefits_raw=sections["benefits_raw"],
         )

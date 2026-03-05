@@ -12,7 +12,10 @@ import type {
   GapAnalysisResponse,
   TrendRankingResponse,
   BuzzHiringGapResponse,
+  ThreeAxisResponse,
+  SnapshotHistoryResponse,
   BlogTopicResponse,
+  BlogPostListResponse,
   YearlyTrendResponse,
   SkillCompanyDistributionResponse,
   PositionType,
@@ -93,6 +96,21 @@ export function getBuzzVsHiring(params?: {
   return get<BuzzHiringGapResponse>('/analysis/buzz-vs-hiring', params)
 }
 
+export function getThreeAxisAnalysis(params?: {
+  topN?: number
+  days?: number
+}) {
+  return get<ThreeAxisResponse>('/analysis/three-axis', params)
+}
+
+export function getSnapshotHistory(params: {
+  source: TrendSource
+  skill: string
+  days?: number
+}) {
+  return get<SnapshotHistoryResponse>('/analysis/snapshot-history', params)
+}
+
 // --- Blog Topics ---
 export function getCompanyBlogTopics(companyId: number, params?: {
   fromYear?: number
@@ -115,4 +133,12 @@ export function getSkillCompanyDistribution(skillName: string, params?: {
   toYear?: number
 }) {
   return get<SkillCompanyDistributionResponse>(`/analysis/blog-topics/skill/${skillName}`, params)
+}
+
+export function getBlogPosts(params?: {
+  companyId?: number
+  page?: number
+  size?: number
+}) {
+  return get<Page<BlogPostListResponse>>('/analysis/blog-topics/posts', params)
 }

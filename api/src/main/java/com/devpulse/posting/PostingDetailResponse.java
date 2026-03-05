@@ -2,10 +2,6 @@ package com.devpulse.posting;
 
 import com.devpulse.company.Company;
 import com.devpulse.company.CompanyCategory;
-import com.devpulse.posting.JobPosting;
-import com.devpulse.posting.PostingSkill;
-import com.devpulse.posting.PostingStatus;
-import com.devpulse.posting.PositionType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,6 +13,16 @@ public record PostingDetailResponse(
         PositionType positionType,
         String experienceLevel,
         String descriptionRaw,
+        String requirementsRaw,
+        String preferredRaw,
+        String responsibilitiesRaw,
+        String techStackRaw,
+        String benefitsRaw,
+        String companySize,
+        String teamInfo,
+        String hiringProcess,
+        String employmentType,
+        String workType,
         String location,
         Integer salaryMin,
         Integer salaryMax,
@@ -54,6 +60,16 @@ public record PostingDetailResponse(
                 posting.getPositionType(),
                 posting.getExperienceLevel(),
                 posting.getDescriptionRaw(),
+                posting.getRequirementsRaw(),
+                posting.getPreferredRaw(),
+                posting.getResponsibilitiesRaw(),
+                posting.getTechStackRaw(),
+                posting.getBenefitsRaw(),
+                posting.getCompanySize(),
+                posting.getTeamInfo(),
+                posting.getHiringProcess(),
+                posting.getEmploymentType(),
+                posting.getWorkType(),
                 posting.getLocation(),
                 posting.getSalaryMin(),
                 posting.getSalaryMax(),

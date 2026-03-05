@@ -126,14 +126,22 @@ class SuperRookieCrawler(BaseCrawler):
         if not title or not company:
             return None
 
+        # 구조화 필드 추출
+        requirements_raw = job.get("requirements")
+        preferred_raw = job.get("preferred")
+        responsibilities_raw = job.get("job_description")
+        benefits_raw = job.get("welfare") or job.get("benefits")
+
         # 설명 조립
         desc_parts: list[str] = []
-        if job.get("job_description"):
-            desc_parts.append(job["job_description"])
-        if job.get("requirements"):
-            desc_parts.append(f"자격요건: {job['requirements']}")
-        if job.get("preferred"):
-            desc_parts.append(f"우대사항: {job['preferred']}")
+        if responsibilities_raw:
+            desc_parts.append(f"담당업무: {responsibilities_raw}")
+        if requirements_raw:
+            desc_parts.append(f"자격요건: {requirements_raw}")
+        if preferred_raw:
+            desc_parts.append(f"우대사항: {preferred_raw}")
+        if benefits_raw:
+            desc_parts.append(f"복리후생: {benefits_raw}")
 
         # 기본 정보를 설명에 추가
         meta_parts: list[str] = []
@@ -156,6 +164,7 @@ class SuperRookieCrawler(BaseCrawler):
             skill_tags = [s if isinstance(s, str) else s.get("name", "") for s in job["skills"]]
             tags.extend(s for s in skill_tags if s and s not in tags)
 
+        tech_stack_raw = ", ".join(tags) if tags else None
         if tags:
             desc_parts.append(f"기술스택: {', '.join(tags)}")
 
@@ -172,6 +181,7 @@ class SuperRookieCrawler(BaseCrawler):
 
         # 경력
         experience_level = job.get("job_level")
+        employment_type = job.get("employment_type") or job.get("job_type")
 
         job_id = str(job.get("_id", job.get("id", "")))
 
@@ -185,6 +195,12 @@ class SuperRookieCrawler(BaseCrawler):
             location=location,
             experience_level=experience_level,
             tags=tags,
+            requirements_raw=requirements_raw,
+            preferred_raw=preferred_raw,
+            responsibilities_raw=responsibilities_raw,
+            tech_stack_raw=tech_stack_raw,
+            benefits_raw=benefits_raw,
+            employment_type=employment_type,
         )
 
     @staticmethod
