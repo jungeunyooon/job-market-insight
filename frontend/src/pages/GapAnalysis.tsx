@@ -137,8 +137,8 @@ export function GapAnalysis() {
         {/* Radial gauge */}
         <div className="rounded-xl border border-border-default bg-bg-surface p-6 flex flex-col items-center justify-center">
           <h3 className="mb-2 text-sm font-medium text-text-muted">시장 매칭률</h3>
-          <div className="relative">
-            <ResponsiveContainer width={200} height={200}>
+          <div className="relative" style={{ width: 200, height: 200 }}>
+            <ResponsiveContainer width="100%" height="100%">
               <RadialBarChart
                 innerRadius="70%"
                 outerRadius="100%"

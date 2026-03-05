@@ -1,4 +1,4 @@
-import { get, post } from './client'
+import { get, post, request } from './client'
 import type {
   Page,
   PostingResponse,
@@ -61,7 +61,7 @@ export function getPositionComparison(positions: PositionType[], topN = 20) {
   const params = new URLSearchParams()
   positions.forEach((p) => params.append('positions', p))
   params.set('topN', String(topN))
-  return get<PositionComparisonResponse>(`/analysis/position-comparison?${params.toString()}`)
+  return request<PositionComparisonResponse>(`/analysis/position-comparison?${params.toString()}`)
 }
 
 export function analyzeGap(request: GapAnalysisRequest, positionType: PositionType = 'BACKEND') {
