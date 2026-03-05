@@ -19,12 +19,21 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           command_timeout: 10m
+          envs: GEMINI_API_KEY,SARAMIN_API_KEY,WORK24_API_KEY
           script: |
             export GIT_SSH_COMMAND="ssh -F ~/.ssh/config"
             cd ~/job-market-insight
 
             # Pull latest changes
             git pull origin main
+
+            # Write secrets to .env (docker compose reads this)
+            cat > .env <<ENVEOF
+            GEMINI_API_KEY=${GEMINI_API_KEY}
+            SARAMIN_API_KEY=${SARAMIN_API_KEY}
+            WORK24_API_KEY=${WORK24_API_KEY}
+            ENVEOF
+            sed -i 's/^            //' .env
 
             # Build and restart services (scheduler uses batch Dockerfile)
             docker compose build api frontend scheduler

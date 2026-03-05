@@ -18,11 +18,20 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           command_timeout: 50m
+          envs: GEMINI_API_KEY,SARAMIN_API_KEY,WORK24_API_KEY
           script: |
             export GIT_SSH_COMMAND="ssh -F ~/.ssh/config"
             cd ~/job-market-insight
 
             git pull origin main
+
+            # Write secrets to .env
+            cat > .env <<ENVEOF
+            GEMINI_API_KEY=${GEMINI_API_KEY}
+            SARAMIN_API_KEY=${SARAMIN_API_KEY}
+            WORK24_API_KEY=${WORK24_API_KEY}
+            ENVEOF
+            sed -i 's/^            //' .env
 
             # 1) Rebuild & start core services
             docker compose up -d --build postgres api frontend
