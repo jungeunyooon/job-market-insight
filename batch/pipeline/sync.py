@@ -391,12 +391,19 @@ class DevPulseSync:
         # Non-developer positions → skip
         non_dev_title = [
             "product manager", "product owner", "기획자", "서비스 기획",
+            "프로덕트 매니저", "프로덕트 오너", "프로젝트 매니저", "project manager",
             "pm ", " pm,", "(pm)", "채용 담당", "hr ", "디자이너", "designer",
             "마케터", "marketer", "marketing", "영업", "sales", "경영지원",
-            "ux researcher", "ux writer",
+            "ux researcher", "ux writer", "사업개발", "business development",
+            "콘텐츠", "content manager", "운영 매니저", "operations manager",
+            "고객 지원", "customer success", "cs manager",
         ]
         if any(k in title_lower for k in non_dev_title):
-            return None
+            # "product engineer"는 개발직 — PM 필터에 걸리지 않도록 예외 처리
+            if "product engineer" in title_lower or "프로덕트 엔지니어" in title_lower:
+                pass  # fall through to classification
+            else:
+                return None
 
         # Title-based classification (high confidence)
         data_eng_title = [
