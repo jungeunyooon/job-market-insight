@@ -57,9 +57,10 @@ class WantedAPICrawler(BaseCrawler):
         job_ids: list[int] = []
 
         # Step 1: Collect unique job IDs from all keywords (exhaust all pages)
+        MAX_PAGES_SAFETY = 50  # 안전장치: 최대 1000개/키워드
         for keyword in self._keywords:
             page = 0
-            while True:
+            while page < MAX_PAGES_SAFETY:
                 offset = page * self._page_size
                 jobs = self._fetch_job_list(keyword=keyword, offset=offset)
                 if not jobs:
@@ -73,8 +74,11 @@ class WantedAPICrawler(BaseCrawler):
                         job_ids.append(job_id)
                         new_in_page += 1
 
-                # Stop if page returned fewer than page_size (last page)
-                if len(jobs) < self._page_size:
+                logger.info("keyword='%s' page=%d fetched=%d new=%d total=%d",
+                            keyword, page, len(jobs), new_in_page, len(job_ids))
+
+                # Stop if last page or no new results (API recycling)
+                if len(jobs) < self._page_size or new_in_page == 0:
                     break
 
                 page += 1
