@@ -15,7 +15,7 @@ from crawlers.trend.base import TrendCrawler, TrendPost
 
 logger = logging.getLogger(__name__)
 
-GEEKNEWS_RSS_URL = "https://news.hada.io/rss"
+GEEKNEWS_RSS_URL = "https://news.hada.io/rss/news"
 
 
 class GeekNewsCrawler(TrendCrawler):
