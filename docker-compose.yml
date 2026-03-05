@@ -66,13 +66,63 @@ services:
       DB_NAME: devpulse
       DB_USER: devpulse
       DB_PASSWORD: devpulse1234
+      OLLAMA_HOST: http://ollama:11434
     depends_on:
       postgres:
         condition: service_healthy
+      ollama:
+        condition: service_started
+        required: false
     networks:
       - devpulse
     profiles:
       - batch
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: batch/Dockerfile
+    container_name: devpulse-scheduler
+    command: ["python", "scheduler.py", "--run-now"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: devpulse
+      DB_USER: devpulse
+      DB_PASSWORD: devpulse1234
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+        required: false
+    restart: unless-stopped
+    networks:
+      - devpulse
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: devpulse-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+    networks:
+      - traefik
+      - devpulse
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=Host(`ai.jungeun.cloud`)"
+      - "traefik.http.routers.ollama.entrypoints=websecure"
+      - "traefik.http.routers.ollama.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.ollama.middlewares=ollama-auth"
+      - "traefik.http.middlewares.ollama-auth.basicauth.users=${OLLAMA_BASIC_AUTH}"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+      - "traefik.docker.network=traefik"
 
 networks:
   traefik:
@@ -81,3 +131,4 @@ networks:
 
 volumes:
   devpulse-data:
+  ollama_data:

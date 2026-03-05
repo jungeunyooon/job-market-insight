@@ -1,9 +1,9 @@
 name: Data Pipeline
 
+# cron 스케줄 제거: 정기 실행은 docker-compose scheduler 서비스가 담당한다.
+# 긴급 수동 실행이 필요할 때만 workflow_dispatch를 사용한다.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 */6 * * *'
 
 jobs:
   sync-data:
@@ -24,6 +24,28 @@ jobs:
 
             git pull origin main
 
-            docker compose up -d postgres
+            # 1) Start postgres + ollama
+            docker compose up -d postgres ollama
+
+            # 2) Pull model (skips if already cached)
+            echo "Pulling gemma3:4b model..."
+            docker exec devpulse-ollama ollama pull gemma3:4b
+
+            # 3) Ollama health check (internal)
+            echo "Checking Ollama health (internal)..."
+            docker exec devpulse-ollama curl -sf http://localhost:11434/api/tags \
+              || { echo "ERROR: Ollama internal health check failed"; exit 1; }
+
+            # 4) Ollama external access check (Traefik)
+            echo "Checking Ollama health (external via Traefik)..."
+            curl -sf --max-time 10 https://ai.jungeun.cloud/api/tags \
+              || echo "WARNING: External Ollama check failed (Traefik may not be ready)"
+
+            # 5) Run batch sync
             docker compose --profile batch build batch
             docker compose --profile batch run --rm batch sync-all
+
+            # 6) Verify LLM summarization in logs
+            docker compose --profile batch logs batch 2>&1 | grep -q "LLM 요약 생성 완료" \
+              && echo "SUCCESS: LLM summarization verified" \
+              || echo "WARNING: LLM summarization message not found in logs"
