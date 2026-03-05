@@ -14,7 +14,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
 # Rate limiting for Gemini free tier (15 RPM)
 _last_gemini_call: float = 0.0
-_GEMINI_MIN_INTERVAL = float(os.getenv("GEMINI_MIN_INTERVAL", "4.0"))  # seconds between calls
+_GEMINI_MIN_INTERVAL = float(os.getenv("GEMINI_MIN_INTERVAL", "8.0"))  # seconds between calls
 _GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "3"))
 
 
