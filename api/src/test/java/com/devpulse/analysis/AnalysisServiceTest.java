@@ -50,9 +50,9 @@ class AnalysisServiceTest {
                     new Object[]{"MySQL", 50L, 30L},
                     new Object[]{"Docker", 40L, 10L}
             );
-            given(postingSkillRepository.findSkillRankingWithFilters(eq(PositionType.BACKEND), eq(false), isNull()))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), eq(PositionType.BACKEND), anyBoolean(), any(), anyList()))
                     .willReturn(rows);
-            given(postingSkillRepository.countPostingsWithFilters(eq(PositionType.BACKEND), eq(false), isNull()))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), eq(PositionType.BACKEND), anyBoolean(), any(), anyList()))
                     .willReturn(100L);
 
             SkillRankingResponse result = analysisService.getSkillRanking(PositionType.BACKEND, null, false, 3);
@@ -69,9 +69,9 @@ class AnalysisServiceTest {
         @Test
         @DisplayName("빈 결과")
         void skillRanking_empty() {
-            given(postingSkillRepository.findSkillRankingWithFilters(any(), anyBoolean(), any()))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), any(), anyBoolean(), any(), anyList()))
                     .willReturn(List.of());
-            given(postingSkillRepository.countPostingsWithFilters(any(), anyBoolean(), any()))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), any(), anyBoolean(), any(), anyList()))
                     .willReturn(0L);
 
             SkillRankingResponse result = analysisService.getSkillRanking(PositionType.BACKEND, null, false, 20);
@@ -85,9 +85,9 @@ class AnalysisServiceTest {
         void skillRanking_withCategoryFilter() {
             List<CompanyCategory> categories = List.of(CompanyCategory.BIGTECH, CompanyCategory.UNICORN);
             List<Object[]> rows = List.<Object[]>of(new Object[]{"Kotlin", 30L, 20L});
-            given(postingSkillRepository.findSkillRankingWithFilters(isNull(), eq(true), eq(categories)))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), any(), anyBoolean(), any(), eq(categories)))
                     .willReturn(rows);
-            given(postingSkillRepository.countPostingsWithFilters(isNull(), eq(true), eq(categories)))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), any(), anyBoolean(), any(), eq(categories)))
                     .willReturn(50L);
 
             SkillRankingResponse result = analysisService.getSkillRanking(null, categories, true, 20);
@@ -151,23 +151,23 @@ class AnalysisServiceTest {
         @DisplayName("BACKEND vs FDE 비교")
         void positionComparison() {
             // BACKEND ranking
-            given(postingSkillRepository.findSkillRankingWithFilters(eq(PositionType.BACKEND), eq(false), isNull()))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), eq(PositionType.BACKEND), anyBoolean(), any(), anyList()))
                     .willReturn(List.of(
                             new Object[]{"Java", 90L, 70L},
                             new Object[]{"Spring Boot", 80L, 60L},
                             new Object[]{"Docker", 40L, 10L}
                     ));
-            given(postingSkillRepository.countPostingsWithFilters(eq(PositionType.BACKEND), eq(false), isNull()))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), eq(PositionType.BACKEND), anyBoolean(), any(), anyList()))
                     .willReturn(100L);
 
             // FDE ranking
-            given(postingSkillRepository.findSkillRankingWithFilters(eq(PositionType.FDE), eq(false), isNull()))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), eq(PositionType.FDE), anyBoolean(), any(), anyList()))
                     .willReturn(List.of(
                             new Object[]{"Java", 30L, 20L},
                             new Object[]{"React", 25L, 15L},
                             new Object[]{"Docker", 15L, 5L}
                     ));
-            given(postingSkillRepository.countPostingsWithFilters(eq(PositionType.FDE), eq(false), isNull()))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), eq(PositionType.FDE), anyBoolean(), any(), anyList()))
                     .willReturn(40L);
 
             PositionComparisonResponse result = analysisService.getPositionComparison(
@@ -194,9 +194,9 @@ class AnalysisServiceTest {
                     new Object[]{"Kubernetes", 60L, 10L},
                     new Object[]{"Kafka", 30L, 5L}
             );
-            given(postingSkillRepository.findSkillRankingWithFilters(eq(PositionType.BACKEND), eq(false), isNull()))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), eq(PositionType.BACKEND), anyBoolean(), any(), anyList()))
                     .willReturn(rows);
-            given(postingSkillRepository.countPostingsWithFilters(eq(PositionType.BACKEND), eq(false), isNull()))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), eq(PositionType.BACKEND), anyBoolean(), any(), anyList()))
                     .willReturn(100L);
 
             GapAnalysisRequest request = new GapAnalysisRequest(List.of(

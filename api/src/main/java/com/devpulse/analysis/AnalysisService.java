@@ -6,6 +6,9 @@ import com.devpulse.company.Company;
 import com.devpulse.company.CompanyCategory;
 import com.devpulse.company.CompanyRepository;
 import com.devpulse.posting.*;
+import com.devpulse.skill.Skill;
+import com.devpulse.skill.SkillRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +25,7 @@ public class AnalysisService {
     private final PostingSkillRepository postingSkillRepository;
     private final JobPostingRepository jobPostingRepository;
     private final CompanyRepository companyRepository;
+    private final SkillRepository skillRepository;
 
     public SkillRankingResponse getSkillRanking(
             PositionType positionType,
@@ -179,6 +183,43 @@ public class AnalysisService {
         if (rank <= 10) return "HIGH";
         if (rank <= 20) return "MEDIUM";
         return "LOW";
+    }
+
+    public SkillMindmapResponse getSkillMindmap(String skillName) {
+        Skill skill = skillRepository.findByName(skillName)
+                .orElseThrow(() -> new EntityNotFoundException("Skill not found: " + skillName));
+
+        List<String> keywords = skill.getKeywords() != null ? skill.getKeywords() : List.of();
+
+        Map<String, List<SkillMindmapResponse.KeywordNode>> keywordGroups = new LinkedHashMap<>();
+
+        long totalPostings = postingSkillRepository.countBySkillId(skill.getId());
+
+        List<Object[]> kwFreqs = postingSkillRepository.findKeywordFrequenciesBySkillId(skill.getId());
+        Map<String, Integer> freqMap = new HashMap<>();
+        for (Object[] row : kwFreqs) {
+            freqMap.put((String) row[0], ((Number) row[1]).intValue());
+        }
+
+        List<SkillMindmapResponse.KeywordNode> nodes = keywords.stream()
+                .map(kw -> {
+                    int count = freqMap.getOrDefault(kw, 0);
+                    double pct = totalPostings > 0 ? (count * 100.0 / totalPostings) : 0.0;
+                    return new SkillMindmapResponse.KeywordNode(kw, count, Math.round(pct * 10.0) / 10.0);
+                })
+                .sorted((a, b) -> Integer.compare(b.postingCount(), a.postingCount()))
+                .toList();
+
+        keywordGroups.put("keywords", nodes);
+
+        return new SkillMindmapResponse(
+                skill.getName(),
+                skill.getNameKo(),
+                skill.getCategory(),
+                keywords,
+                keywordGroups,
+                (int) totalPostings
+        );
     }
 
     public static class CompanyNotFoundException extends RuntimeException {

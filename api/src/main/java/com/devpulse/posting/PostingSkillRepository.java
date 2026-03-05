@@ -62,4 +62,13 @@ public interface PostingSkillRepository extends JpaRepository<PostingSkill, Long
            "WHERE ps.posting.company.id = :companyId " +
            "GROUP BY ps.posting.positionType")
     List<Object[]> findPositionBreakdownByCompany(@Param("companyId") Long companyId);
+
+    long countBySkillId(Long skillId);
+
+    @Query(value = "SELECT kw.value AS keyword, COUNT(DISTINCT ps.posting_id) AS freq " +
+           "FROM posting_skill ps, jsonb_array_elements_text(ps.matched_keywords) AS kw(value) " +
+           "WHERE ps.skill_id = :skillId " +
+           "GROUP BY kw.value " +
+           "ORDER BY freq DESC", nativeQuery = true)
+    List<Object[]> findKeywordFrequenciesBySkillId(@Param("skillId") Long skillId);
 }

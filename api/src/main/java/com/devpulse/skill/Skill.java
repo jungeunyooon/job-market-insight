@@ -34,6 +34,10 @@ public class Skill {
     @Column(columnDefinition = "jsonb")
     private List<String> aliases;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "keywords", columnDefinition = "jsonb")
+    private List<String> keywords;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "source_scope", nullable = false, columnDefinition = "skill_source_scope")
@@ -49,11 +53,12 @@ public class Skill {
 
     @Builder
     public Skill(String name, String nameKo, String category,
-                 List<String> aliases, SkillSourceScope sourceScope) {
+                 List<String> aliases, List<String> keywords, SkillSourceScope sourceScope) {
         this.name = name;
         this.nameKo = nameKo;
         this.category = category;
         this.aliases = aliases != null ? aliases : List.of();
+        this.keywords = keywords != null ? keywords : List.of();
         this.sourceScope = sourceScope != null ? sourceScope : SkillSourceScope.BOTH;
     }
 }

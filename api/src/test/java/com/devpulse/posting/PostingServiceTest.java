@@ -84,7 +84,7 @@ class PostingServiceTest {
         void findAll_noFilters() {
             Pageable pageable = PageRequest.of(0, 20);
             Page<JobPosting> page = new PageImpl<>(List.of(testPosting), pageable, 1);
-            given(jobPostingRepository.findByFiltersExtended(null, null, null, null, null, pageable))
+            given(jobPostingRepository.findByFiltersExtended(anyBoolean(), any(), anyList(), anyList(), anyBoolean(), any(), anyBoolean(), any(), eq(pageable)))
                     .willReturn(page);
             given(postingSkillRepository.findByPostingId(any())).willReturn(List.of(testPostingSkill));
 
@@ -100,7 +100,7 @@ class PostingServiceTest {
         void findAll_byPositionType() {
             Pageable pageable = PageRequest.of(0, 20);
             Page<JobPosting> page = new PageImpl<>(List.of(testPosting), pageable, 1);
-            given(jobPostingRepository.findByFiltersExtended(eq(PositionType.BACKEND), isNull(), isNull(), isNull(), isNull(), eq(pageable)))
+            given(jobPostingRepository.findByFiltersExtended(eq(true), eq(PositionType.BACKEND), anyList(), anyList(), anyBoolean(), any(), anyBoolean(), any(), eq(pageable)))
                     .willReturn(page);
             given(postingSkillRepository.findByPostingId(any())).willReturn(List.of(testPostingSkill));
 
@@ -118,7 +118,7 @@ class PostingServiceTest {
             Pageable pageable = PageRequest.of(0, 20);
             List<String> skillNames = List.of("Java");
             Page<JobPosting> page = new PageImpl<>(List.of(testPosting), pageable, 1);
-            given(jobPostingRepository.findByFiltersWithSkills(isNull(), isNull(), isNull(), eq(skillNames), isNull(), isNull(), eq(pageable)))
+            given(jobPostingRepository.findByFiltersWithSkills(anyBoolean(), any(), anyList(), anyList(), eq(skillNames), anyBoolean(), any(), anyBoolean(), any(), eq(pageable)))
                     .willReturn(page);
             given(postingSkillRepository.findByPostingId(any())).willReturn(List.of(testPostingSkill));
 
@@ -135,7 +135,7 @@ class PostingServiceTest {
         void findAll_empty() {
             Pageable pageable = PageRequest.of(0, 20);
             Page<JobPosting> emptyPage = new PageImpl<>(List.of(), pageable, 0);
-            given(jobPostingRepository.findByFiltersExtended(any(), any(), any(), any(), any(), any()))
+            given(jobPostingRepository.findByFiltersExtended(anyBoolean(), any(), anyList(), anyList(), anyBoolean(), any(), anyBoolean(), any(), any()))
                     .willReturn(emptyPage);
 
             Page<PostingResponse> result = postingService.findAll(null, null, null, null, null, null, pageable);

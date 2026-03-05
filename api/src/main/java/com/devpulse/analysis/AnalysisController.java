@@ -57,4 +57,9 @@ public class AnalysisController {
     ) {
         return ResponseEntity.ok(analysisService.analyzeGap(request, positionType));
     }
+
+    @GetMapping("/skill-mindmap")
+    public ResponseEntity<SkillMindmapResponse> getSkillMindmap(@RequestParam String skill) {
+        return ResponseEntity.ok(analysisService.getSkillMindmap(skill));
+    }
 }

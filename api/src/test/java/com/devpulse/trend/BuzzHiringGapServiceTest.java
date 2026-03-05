@@ -93,9 +93,9 @@ class BuzzHiringGapServiceTest {
                     new Object[]{"Kafka", 251L, 100L},
                     new Object[]{"LangChain", 16L, 5L}
             );
-            given(postingSkillRepository.findSkillRankingWithFilters(isNull(), eq(false), isNull()))
+            given(postingSkillRepository.findSkillRankingWithFilters(anyBoolean(), any(), anyBoolean(), any(), anyList()))
                     .willReturn(jobRows);
-            given(postingSkillRepository.countPostingsWithFilters(isNull(), eq(false), isNull()))
+            given(postingSkillRepository.countPostingsWithFilters(anyBoolean(), any(), anyBoolean(), any(), anyList()))
                     .willReturn(523L);
 
             BuzzHiringGapResponse result = service.analyzeBuzzVsHiring(20, 30);

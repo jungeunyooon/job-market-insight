@@ -153,4 +153,24 @@ class AnalysisControllerTest {
                         .content("{\"mySkills\": []}"))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    @DisplayName("GET /api/v1/analysis/skill-mindmap — 스킬 마인드맵 키워드 조회")
+    void getSkillMindmap_returnsKeywordData() throws Exception {
+        SkillMindmapResponse response = new SkillMindmapResponse(
+                "Redis", "레디스", "database",
+                List.of("캐싱 전략", "TTL", "캐시 미스"),
+                Map.of("keywords", List.of(
+                        new SkillMindmapResponse.KeywordNode("캐싱 전략", 15, 22.1),
+                        new SkillMindmapResponse.KeywordNode("TTL", 10, 14.7)
+                )),
+                68
+        );
+        given(analysisService.getSkillMindmap("Redis")).willReturn(response);
+
+        mockMvc.perform(get("/api/v1/analysis/skill-mindmap").param("skill", "Redis"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.skillName").value("Redis"))
+                .andExpect(jsonPath("$.keywordGroups.keywords[0].keyword").value("캐싱 전략"));
+    }
 }
