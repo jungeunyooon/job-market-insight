@@ -98,4 +98,66 @@
 - [x] 프론트 API 쿼리스트링 조립 버그 수정 (`position-comparison` 400 해결)
 - [x] 회사 프로필 조회를 이름 기반으로 보강 (`company-profile` 404 완화)
 - [x] 갭 분석 빈 결과(`gaps=[]`) 안내 UI 추가
+
+---
+
+## 데이터 파이프라인 확장 + 딥 테크니컬 키워드 (2026-03-05)
+
+### 데이터 무결성 검증
+- [x] 프로덕션 API 전수 조회: job_posting 680건, skill-ranking 421건(스킬 매핑), trend 11건
+- [x] 문제 식별: 38% 공고 스킬 미매핑, 트렌드 데이터 부족, crawl_log 미사용, requiredRatio 항상 0.0
+
+### 딥 테크니컬 키워드 모델 (ADR-008)
+- [x] `skills_seed.json`에 `keywords` 필드 추가 (105개 전체)
+- [x] 주요 기술 8-15개 키워드: Java(JVM 튜닝, GC 최적화), Redis(캐싱 전략, 히트율), Kafka(파티셔닝, 컨슈머 그룹) 등
+- [x] Flyway V2 마이그레이션: `skill` 테이블에 `keywords JSONB DEFAULT '[]'` 컬럼 추가
+- [x] `seed_reference_data()`가 keywords 필드도 함께 upsert
+
+### 데이터 파이프라인 확장성 (ADR-007)
+- [x] `crawl_log` 테이블 기록 구현: 모든 sync 실행마다 source_type/status/duration_ms/items 기록
+- [x] 크롤러별 재시도 로직: 최대 2회 지수 백오프 (2초, 4초)
+- [x] 컨테이너 내장 스케줄러 (`batch/scheduler.py`): `schedule` 라이브러리, 6시간 주기, `--run-now` 지원
+- [x] `docker-compose.yml`에 `scheduler` 서비스 추가 (restart: unless-stopped)
+- [x] GitHub Actions cron 제거 → `workflow_dispatch` 전용(수동 긴급 실행용)
+- [x] **테스트 162개 통과 (Python) — 0 regression**
+
+### 프로덕션 논리 오류 수정
+- [x] `cmd_sync_all` 단일 DevPulseSync 인스턴스로 통합 (기존 3개 → 1개, seed 3회 → 1회)
+- [x] `_crawl_and_sync_with_retry` 크롤링+동기화 묶어서 재시도 (기존: sync만 재시도)
+- [x] `_infer_position_type` 타이틀 우선 분류 (description "react" 오분류 수정)
+- [x] `is_required/is_preferred` 자격요건/우대사항 섹션 분석 기반 분류 (기존: 항상 false)
+- [x] **테스트 172개 통과 (Python) — 0 regression**
+
+---
+
+## 딥 키워드 매칭 + LLM 요약 + API 확장 (2026-03-05)
+
+### 딥 키워드 매칭 (ADR-009)
+- [x] `_extract_matched_keywords()`: 공고 description에서 스킬별 세부 키워드 추출
+- [x] `posting_skill.matched_keywords` JSONB 컬럼 추가 (V3 마이그레이션)
+- [x] `sync_job_postings`에서 matched_keywords 자동 저장
+- [x] Skill JPA 엔티티에 `keywords` 필드 추가
+- [x] PostingSkill JPA 엔티티에 `matchedKeywords` 필드 추가
+- [x] `GET /api/v1/skills/{id}/keywords` 엔드포인트 (키워드 빈도 분석)
+
+### 스킬 마인드맵 API
+- [x] `GET /api/v1/analysis/skill-mindmap?skill={name}` 엔드포인트
+- [x] SkillMindmapResponse DTO (키워드 그룹, 빈도, 비율)
+- [x] AnalysisControllerTest 테스트 추가
+
+### 블로그 콘텐츠 요약
+- [x] `batch/nlp/summarizer.py` extractive 요약기 (키워드 밀도 기반)
+- [x] `batch/nlp/llm_summarizer.py` Ollama LLM 요약기 (ADR-011)
+- [x] `sync_blog_posts`에서 LLM 우선 → extractive fallback
+- [x] docker-compose에 ollama 서비스 추가 (gemma3:4b, 4GB)
+- [x] `tech_blog_post.summary` 컬럼 추가 (V3 마이그레이션)
+
+### Java 테스트 수정
+- [x] AnalysisServiceTest, PostingServiceTest, BuzzHiringGapServiceTest 메서드 시그니처 수정
+- [x] `./gradlew compileTestJava` 성공 (34 errors → 0)
+
+### 테스트 현황
+- [x] **테스트 191개 통과 (Python) — 0 regression**
+- [x] **Java 프로덕션 + 테스트 컴파일 성공**
+
 - [ ] 기술 블로그 시리즈

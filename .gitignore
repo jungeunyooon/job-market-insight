@@ -46,3 +46,4 @@ devpulse-data/
 # OMC
 .omc/
 frontend/.omc/
+.claude/

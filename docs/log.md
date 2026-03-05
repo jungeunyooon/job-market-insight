@@ -231,3 +231,86 @@
     - `company-profile/1` 404 원인: 프론트의 회사 ID 하드코딩과 운영 DB ID 불일치
     - `gap` 빈 화면 개선: `gaps=[]`일 때 데이터 미수집 안내 UI 추가
     - 회사 프로필 이름 기반 조회 API(`/api/v1/analysis/company-profile?companyName=...`) 추가
+
+---
+
+## 2026-03-05 | 데이터 파이프라인 확장 + 딥 테크니컬 키워드
+
+### 진행 내용
+
+42. **프로덕션 데이터 무결성 검증**:
+    - 프로덕션 API(`job.jungeun.cloud`) 전수 조회: 680 postings, 421 with skills, 11 trends
+    - 38% 공고 스킬 미매핑 식별, 트렌드 데이터 부족(11건), crawl_log 미사용 확인
+    - FDE 포지션의 Linux 42.3% 이상치 → position_type 추론 로직 개선 필요 (향후)
+
+43. **딥 테크니컬 키워드 모델 구축**:
+    - `skills_seed.json` 105개 전 항목에 `keywords` 필드 추가
+    - 주요 기술 8-15개 심층 키워드: Redis(캐싱 전략, 히트율, TTL), Kafka(파티셔닝, exactly-once), Java(JVM 튜닝, GC 최적화) 등
+    - 키워드 소스: 한국 테크 기업 블로그 용어, 기술 면접 빈출 개념, 시스템 설계 토론 주제
+    - Flyway V2 마이그레이션: `ALTER TABLE skill ADD COLUMN keywords JSONB DEFAULT '[]'`
+    - `seed_reference_data()` 수정: keywords 필드 upsert 포함
+
+44. **데이터 파이프라인 확장성 개선**:
+    - `sync.py`에 `log_crawl_execution()` 메서드 추가: crawl_log 테이블에 실행 결과 기록
+    - 3개 sync 메서드(sync_job_postings/sync_blog_posts/sync_trend_posts) 타이밍 + 로깅 추가
+    - `main.py`에 `_sync_with_retry()` 추가: 크롤러별 최대 2회 재시도, 지수 백오프(2s, 4s)
+    - 각 sync 명령 실행 후 PASS/FAIL 요약 출력
+
+45. **컨테이너 내장 스케줄러 전환**:
+    - `batch/scheduler.py` 신규: `schedule` 라이브러리, 6시간 주기, `--interval`/`--run-now` 인자
+    - `docker-compose.yml`에 `scheduler` 서비스 추가 (restart: unless-stopped, --run-now)
+    - GitHub Actions `data-pipeline.yml`에서 cron 스케줄 제거 → workflow_dispatch 전용
+
+46. **문서 업데이트**:
+    - `docs/DECISIONS.md`: ADR-007 (파이프라인 자체 스케줄링), ADR-008 (딥 테크니컬 키워드)
+    - `docs/PROGRESS.md`: 데이터 파이프라인 확장 섹션 추가
+    - `docs/log.md`: 본 세션 작업 기록
+    - `docs/PROJECT_DOCS.md`: 키워드 모델 + 파이프라인 아키텍처 반영
+
+### 산출물
+- **테스트 162개 통과 (Python) — 0 regression**
+- **기존 Java 44개 테스트 영향 없음** (스키마 V2는 ADD COLUMN only)
+
+---
+
+## 2026-03-05 | 프로덕션 논리 오류 수정 + 딥 키워드 매칭 + LLM 요약
+
+### 진행 내용
+
+47. **프로덕션 논리 오류 6개 발견 및 4개 수정**:
+    - `cmd_sync_all` DevPulseSync 3개 생성 → 1개로 통합 (seed 3회 → 1회)
+    - `_crawl_and_sync_with_retry` 크롤링+동기화 묶어서 재시도 (네트워크 장애 시 재크롤)
+    - `_infer_position_type` 타이틀 우선 분류 (description "react" 오분류 수정)
+    - `_classify_skill_requirement` 자격요건/우대사항 섹션 분석 (is_required/is_preferred 실제 값)
+
+48. **딥 키워드 매칭 구현 (ADR-009)**:
+    - `_extract_matched_keywords()`: 스킬 매칭 시 세부 키워드도 description에서 추출
+    - `posting_skill.matched_keywords` JSONB 컬럼 (V3 마이그레이션)
+    - `_skill_keywords` 딕셔너리: skills_seed.json keywords를 런타임 조회용으로 캐시
+    - `GET /api/v1/skills/{id}/keywords` API: 키워드별 공고 빈도 분석
+
+49. **스킬 마인드맵 API 구현**:
+    - `GET /api/v1/analysis/skill-mindmap?skill={name}` 엔드포인트
+    - SkillMindmapResponse: 키워드 그룹, 공고 빈도, 비율 포함
+    - PostingSkillRepository에 `findKeywordFrequenciesBySkillId` 네이티브 쿼리 추가
+
+50. **블로그 콘텐츠 요약 구현**:
+    - `batch/nlp/summarizer.py`: extractive 요약 (키워드 밀도 + 위치 + 숫자 보너스)
+    - `batch/nlp/llm_summarizer.py`: Ollama API 호출 (ADR-011)
+    - `sync_blog_posts`에서 LLM 우선 → extractive fallback 체인
+    - docker-compose에 ollama 서비스 추가 (gemma3:4b, 4GB 제한)
+
+51. **Java 테스트 컴파일 오류 수정**:
+    - AnalysisServiceTest, PostingServiceTest, BuzzHiringGapServiceTest mock 시그니처 수정
+    - 34 errors → 0 errors
+
+52. **Skill/PostingSkill JPA 엔티티 업데이트**:
+    - Skill: `keywords List<String>` JSONB 필드 추가
+    - PostingSkill: `matchedKeywords List<String>` JSONB 필드 추가
+
+### 산출물
+- **테스트 191개 통과 (Python) — 0 regression** (162 → 191: +29 신규)
+- **Java 프로덕션 + 테스트 컴파일 성공**
+- **Flyway V3 마이그레이션**: matched_keywords + summary 컬럼
+- **신규 API**: `/skills/{id}/keywords`, `/analysis/skill-mindmap`
+- **ADR-009** (딥 키워드 매칭), **ADR-011** (Ollama LLM 요약)

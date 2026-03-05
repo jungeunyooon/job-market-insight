@@ -65,7 +65,8 @@ job-market-insight/
 │   ├── report/
 │   │   └── generator.py          # Markdown 리포트 자동 생성
 │   ├── pipeline/
-│   │   └── sync.py               # crawl 결과 DB upsert 파이프라인
+│   │   └── sync.py               # crawl 결과 DB upsert 파이프라인 + crawl_log 기록
+│   ├── scheduler.py              # 컨테이너 내장 스케줄러 (6시간 주기)
 │   ├── phase0_validate.py        # Phase 0 검증 파이프라인
 │   └── tests/                    # pytest 121개
 ├── frontend/                     # React 19 대시보드
@@ -81,10 +82,10 @@ job-market-insight/
 │   ├── companies_seed.json       # 29개 회사 (Big7 + 자회사 + 유니콘 + 스타트업)
 │   ├── position_aliases.json     # BACKEND/PRODUCT/FDE 별칭
 │   └── sample_postings.csv       # Phase 0 검증용 20건
-├── docker-compose.yml            # postgres/api/frontend + batch(profile)
+├── docker-compose.yml            # postgres/api/frontend/scheduler + batch(profile, 수동)
 ├── .github/workflows/
 │   ├── deploy.yml                # 서버 배포 + API health 대기
-│   └── data-pipeline.yml         # 6시간 주기 배치 동기화
+│   └── data-pipeline.yml         # 수동 긴급 배치 동기화 (workflow_dispatch)
 └── CLAUDE.md                     # AI 활용 규칙 + 프로젝트 컨벤션
 ```
 
@@ -97,7 +98,7 @@ job-market-insight/
 **11 Tables**:
 - `company` — 회사 정보 (category ENUM, JSONB tags/aliases)
 - `job_posting` — 채용공고 (상태 생명주기: ACTIVE → CLOSED → EXPIRED → ARCHIVED)
-- `skill` — 기술 스킬 (source_scope: JOB_POSTING/TREND/BOTH)
+- `skill` — 기술 스킬 (source_scope: JOB_POSTING/TREND/BOTH, keywords JSONB)
 - `posting_skill` — 공고↔스킬 매핑 (is_required, is_preferred)
 - `tech_blog_post` — 기술 블로그 글
 - `blog_skill` — 블로그↔스킬 매핑
@@ -169,7 +170,14 @@ job-market-insight/
 - **한글 조사 경계 처리**: 영어 `(?<![a-zA-Z])`, 한글 `(?<![가-힣])` 분리
 - **source_scope 필터링**: JOB_POSTING 분석 시 TREND 전용 키워드(vibe coding 등) 제외
 
-### 5.2 Gap Analysis 우선순위
+### 5.2 딥 테크니컬 키워드 모델
+- 각 기술(skill)에 `keywords` 필드로 심층 개념 키워드 관리
+- 단순 기술명이 아닌, 해당 기술의 핵심 개념을 추적
+- 예시: Redis → [캐싱 전략, 캐시 미스, 히트율, TTL, 캐시 무효화, pub/sub, 레디스 클러스터]
+- **데이터 소스**: 테크 블로그 용어, 기술 면접 빈출 개념, 시스템 설계 토론
+- **확장**: 기술 서적 첨부 → 키워드 자동 추출 (향후)
+
+### 5.3 Gap Analysis 우선순위
 | 상태 | 조건 | 우선순위 |
 |------|------|----------|
 | OWNED | 보유 스킬 | MAINTAINED |
@@ -179,7 +187,28 @@ job-market-insight/
 | NOT_OWNED | rank ≤ 20 | MEDIUM |
 | NOT_OWNED | rank > 20 | LOW |
 
-### 5.3 공고 생명주기
+### 5.4 데이터 파이프라인 아키텍처
+```
+┌─────────────────────────────────────────────────────┐
+│  scheduler 컨테이너 (상시 실행, 6시간 주기)          │
+│  scheduler.py → cmd_sync_all()                       │
+│    ├── sync_job_postings (retry ×2, crawl_log 기록)  │
+│    ├── sync_blog_posts   (retry ×2, crawl_log 기록)  │
+│    └── sync_trend_posts  (retry ×2, crawl_log 기록)  │
+└─────────────────────────────────────────────────────┘
+         │
+         ▼
+┌──────────────┐
+│  PostgreSQL  │ ← crawl_log: 실행 이력/상태/소요시간
+│  (공유 DB)   │ ← job_posting/tech_blog_post/trend_post
+└──────────────┘
+```
+- **관측성**: 모든 크롤링 실행은 `crawl_log` 테이블에 기록 (source_type, status, duration_ms, items_collected)
+- **장애 격리**: 크롤러별 독립 실행, 한 크롤러 실패가 다른 크롤러에 영향 없음
+- **재시도**: 최대 2회 지수 백오프 (2초, 4초)
+- **수동 실행**: GitHub Actions `workflow_dispatch` 또는 `docker compose --profile batch run --rm batch sync-all`
+
+### 5.5 공고 생명주기
 - ACTIVE → CLOSED (마감) → EXPIRED (만료) → ARCHIVED (보관)
 - **절대 삭제 금지**: 시계열 분석을 위해 영구 보관
 
@@ -294,8 +323,15 @@ job-market-insight/
 
 ### 운영 자동화 (2026-03-05)
 - [x] 배포 워크플로우 고도화 (`deploy.yml`: container health 기준)
-- [x] 데이터 파이프라인 워크플로우 (`data-pipeline.yml`: 6시간 주기 + 수동 실행)
 - [x] 배치 업서트 파이프라인 (`sync-all`: jobs/blogs/trends)
+
+### 데이터 파이프라인 확장 (2026-03-05)
+- [x] 딥 테크니컬 키워드 모델: 105개 스킬에 심층 개념 키워드 추가
+- [x] Flyway V2 마이그레이션: skill 테이블에 keywords 컬럼 추가
+- [x] crawl_log 기록: 모든 sync 실행마다 실행 이력 기록
+- [x] 크롤러별 재시도 로직 (지수 백오프 ×2)
+- [x] 컨테이너 내장 스케줄러 (scheduler.py, 6시간 주기)
+- [x] GitHub Actions cron → workflow_dispatch 전용
 
 ---
 
