@@ -203,6 +203,10 @@ class DevPulseSync:
                 try:
                     company_id = self._upsert_company(cur, post.company_name)
                     posting_id, inserted = self._upsert_job_posting(cur, company_id, post)
+                    if posting_id is None:
+                        # Non-developer position, skip
+                        stats.crawled -= 1
+                        continue
                     if inserted:
                         stats.inserted += 1
                     else:
@@ -381,37 +385,64 @@ class DevPulseSync:
     def _normalize_title(self, title: str) -> str:
         return re.sub(r"\s+", " ", (title or "").strip().lower())
 
-    def _infer_position_type(self, title: str, description: str) -> str:
+    def _infer_position_type(self, title: str, description: str) -> str | None:
         title_lower = title.lower()
 
-        # Title-based classification (high confidence)
-        backend_title = ["backend", "back-end", "back end", "서버", "백엔드", "server", "spring", "java developer", "python developer", "go developer"]
-        fde_title = ["frontend", "front-end", "front end", "프론트엔드", "프론트", "react developer", "vue developer", "ui developer", "ux engineer"]
-        product_title = ["product manager", "product owner", "기획자", "프로덕트", "pm"]
+        # Non-developer positions → skip
+        non_dev_title = [
+            "product manager", "product owner", "기획자", "서비스 기획",
+            "pm ", " pm,", "(pm)", "채용 담당", "hr ", "디자이너", "designer",
+            "마케터", "marketer", "marketing", "영업", "sales", "경영지원",
+            "ux researcher", "ux writer",
+        ]
+        if any(k in title_lower for k in non_dev_title):
+            return None
 
+        # Title-based classification (high confidence)
+        frontend_title = [
+            "frontend", "front-end", "프론트엔드", "react developer",
+            "vue developer", "ui developer", "ux engineer",
+        ]
+        fullstack_title = ["fullstack", "full-stack", "full stack", "풀스택"]
+        backend_title = [
+            "backend", "back-end", "back end", "서버", "백엔드", "server",
+            "spring", "java developer", "python developer", "go developer",
+        ]
+        product_title = ["product engineer", "프로덕트 엔지니어"]
+        fde_title = ["forward deployed", "solutions engineer", "technical consultant", "fde"]
+
+        if any(k in title_lower for k in frontend_title):
+            return "FRONTEND"
+        if any(k in title_lower for k in fullstack_title):
+            return "FULLSTACK"
         if any(k in title_lower for k in backend_title):
             return "BACKEND"
-        if any(k in title_lower for k in fde_title):
-            return "FDE"
         if any(k in title_lower for k in product_title):
             return "PRODUCT"
+        if any(k in title_lower for k in fde_title):
+            return "FDE"
 
         # Fallback: check description but with stricter matching
         desc_lower = description.lower()
+        frontend_desc = ["frontend", "front-end", "프론트엔드", "react 개발", "vue 개발"]
+        fullstack_desc = ["fullstack", "full-stack", "full stack", "풀스택"]
         backend_desc = ["backend", "back-end", "서버 개발", "백엔드", "spring boot", "api 개발"]
-        fde_desc = ["frontend", "front-end", "프론트엔드", "react 개발", "vue 개발", "ui/ux"]
 
+        if any(k in desc_lower for k in frontend_desc):
+            return "FRONTEND"
+        if any(k in desc_lower for k in fullstack_desc):
+            return "FULLSTACK"
         if any(k in desc_lower for k in backend_desc):
             return "BACKEND"
-        if any(k in desc_lower for k in fde_desc):
-            return "FDE"
 
         return "BACKEND"  # default to backend
 
-    def _upsert_job_posting(self, cur, company_id: int, post: RawJobPosting) -> tuple[int, bool]:
+    def _upsert_job_posting(self, cur, company_id: int, post: RawJobPosting) -> tuple[int | None, bool]:
         title = (post.title or "").strip() or "(untitled)"
         posted_at = post.posted_at or datetime.now(timezone.utc)
         position_type = self._infer_position_type(title, post.description_raw)
+        if position_type is None:
+            return None, False
         title_normalized = self._normalize_title(title)
         source_platform = (post.source_platform or "unknown").strip().lower()
         source_url = (post.source_url or "").strip() or f"urn:generated:{company_id}:{title_normalized}"

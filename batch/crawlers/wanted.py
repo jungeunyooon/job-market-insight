@@ -33,7 +33,7 @@ class WantedAPICrawler(BaseCrawler):
         max_pages: int = 5,
         page_size: int = 20,
     ) -> None:
-        self._keywords = search_keywords or ["백엔드", "서버 개발자", "Backend Engineer"]
+        self._keywords = search_keywords or ["백엔드", "서버 개발자", "Backend Engineer", "프론트엔드", "Frontend Engineer", "풀스택", "Fullstack Developer"]
         self._max_pages = max_pages
         self._page_size = page_size
         self._session = requests.Session()

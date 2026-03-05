@@ -38,7 +38,7 @@ class SaraminAPICrawler(BaseCrawler):
         max_count: int = 100,
     ) -> None:
         self._api_key = api_key or os.getenv("SARAMIN_API_KEY", "")
-        self._keywords = keywords or ["백엔드", "서버개발", "Backend"]
+        self._keywords = keywords or ["백엔드", "서버개발", "Backend", "프론트엔드", "Frontend", "풀스택"]
         self._max_count = max_count
         self._session = requests.Session()
         self._session.headers.update({

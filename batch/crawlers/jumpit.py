@@ -29,11 +29,11 @@ class JumpitCrawler(BaseCrawler):
 
     def __init__(
         self,
-        job_category: int = 1,  # 1 = 서버/백엔드
+        job_categories: list[int] | None = None,  # 1=서버/백엔드, 2=프론트엔드
         max_pages: int = 5,
         page_size: int = 16,
     ) -> None:
-        self._job_category = job_category
+        self._job_categories = job_categories if job_categories is not None else [1, 2]
         self._max_pages = max_pages
         self._page_size = page_size
         self._session = requests.Session()
@@ -51,25 +51,26 @@ class JumpitCrawler(BaseCrawler):
     def crawl(self) -> list[RawJobPosting]:
         """Crawl job postings from Jumpit API.
 
-        1. Paginate through job list API
+        1. Paginate through job list API for each category
         2. Fetch detail for each job
         3. Return list of RawJobPosting
         """
         seen_ids: set[int] = set()
         job_ids: list[int] = []
 
-        for page in range(1, self._max_pages + 1):
-            jobs = self._fetch_job_list(page=page)
-            if not jobs:
-                break
+        for category in self._job_categories:
+            for page in range(1, self._max_pages + 1):
+                jobs = self._fetch_job_list(page=page, job_category=category)
+                if not jobs:
+                    break
 
-            for job in jobs:
-                job_id = job.get("id")
-                if job_id and job_id not in seen_ids:
-                    seen_ids.add(job_id)
-                    job_ids.append(job_id)
+                for job in jobs:
+                    job_id = job.get("id")
+                    if job_id and job_id not in seen_ids:
+                        seen_ids.add(job_id)
+                        job_ids.append(job_id)
 
-            time.sleep(self.get_rate_limit_delay())
+                time.sleep(self.get_rate_limit_delay())
 
         logger.info(f"Found {len(job_ids)} unique jobs from Jumpit")
 
@@ -83,13 +84,13 @@ class JumpitCrawler(BaseCrawler):
         logger.info(f"Successfully fetched {len(postings)} job details from Jumpit")
         return postings
 
-    def _fetch_job_list(self, page: int = 1) -> list[dict]:
+    def _fetch_job_list(self, page: int = 1, job_category: int = 1) -> list[dict]:
         """Fetch job listing page from Jumpit API."""
         try:
             resp = self._session.get(
                 f"{JUMPIT_API_BASE}/positions",
                 params={
-                    "jobCategory": self._job_category,
+                    "jobCategory": job_category,
                     "page": page,
                     "sort": "rsp_rate",
                 },
@@ -99,7 +100,7 @@ class JumpitCrawler(BaseCrawler):
             if resp.status_code == 429:
                 logger.warning("Rate limited. Waiting 5 seconds...")
                 time.sleep(5)
-                return self._fetch_job_list(page)
+                return self._fetch_job_list(page, job_category)
 
             if resp.status_code != 200:
                 logger.error(f"Jumpit list API error: {resp.status_code}")

@@ -22,13 +22,27 @@ class PositionNormalizer:
             "BE Developer",
             "Platform Engineer",
         ],
-        "PRODUCT": [
-            "프로덕트 엔지니어",
-            "Product Engineer",
+        "FRONTEND": [
+            "프론트엔드",
+            "프론트엔드 개발자",
+            "Frontend Engineer",
+            "Frontend Developer",
+            "FE Developer",
+            "UI Developer",
+            "UI Engineer",
+        ],
+        "FULLSTACK": [
             "풀스택",
+            "풀스택 개발자",
             "Full-stack",
             "Fullstack",
             "Full Stack",
+            "Fullstack Developer",
+            "Full Stack Engineer",
+        ],
+        "PRODUCT": [
+            "프로덕트 엔지니어",
+            "Product Engineer",
         ],
         "FDE": [
             "FDE",

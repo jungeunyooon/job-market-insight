@@ -140,7 +140,7 @@ export function GapAnalysis() {
 
       {/* Position selector */}
       <div className="mb-4 flex gap-2">
-        {(['BACKEND', 'FDE', 'PRODUCT'] as PositionType[]).map((pos) => (
+        {(['BACKEND', 'FRONTEND', 'FULLSTACK', 'PRODUCT', 'FDE'] as PositionType[]).map((pos) => (
           <button
             key={pos}
             onClick={() => setPosition(pos)}
