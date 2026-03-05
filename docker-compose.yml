@@ -67,6 +67,7 @@ services:
       DB_USER: devpulse
       DB_PASSWORD: devpulse1234
       OLLAMA_HOST: http://ollama:11434
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       SARAMIN_API_KEY: ${SARAMIN_API_KEY:-}
       WORK24_API_KEY: ${WORK24_API_KEY:-}
       BLOG_FETCH_FULL_CONTENT: "true"
@@ -94,6 +95,7 @@ services:
       DB_USER: devpulse
       DB_PASSWORD: devpulse1234
       OLLAMA_HOST: http://ollama:11434
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       SARAMIN_API_KEY: ${SARAMIN_API_KEY:-}
       WORK24_API_KEY: ${WORK24_API_KEY:-}
       BLOG_FETCH_FULL_CONTENT: "true"

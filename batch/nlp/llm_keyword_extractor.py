@@ -1,6 +1,6 @@
 """LLM-based keyword extraction from job posting structured fields.
 
-Uses Ollama to extract contextual technical keywords that go beyond
+Uses LLM to extract contextual technical keywords that go beyond
 simple skill name matching — capturing domain-specific requirements
 like '대규모 트래픽 처리', '캐싱 전략', 'MSA 전환 경험' etc.
 """
@@ -10,12 +10,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-from urllib.error import URLError
-from urllib.request import Request, urlopen
+
+from nlp.llm_client import generate as llm_generate
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 DEFAULT_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "30"))
 
 _EXTRACT_PROMPT = """다음 채용 공고의 자격요건/우대사항에서 핵심 기술 키워드를 추출해주세요.
@@ -41,15 +40,11 @@ def llm_extract_keywords(
     responsibilities_raw: str | None = None,
     max_content_chars: int = 3000,
 ) -> list[dict]:
-    """Ollama API를 호출하여 채용 공고에서 심층 기술 키워드를 추출한다.
+    """LLM API를 호출하여 채용 공고에서 심층 기술 키워드를 추출한다.
 
     Returns:
-        [{"keyword": str, "section": str}] 리스트. Ollama 미사용/오류 시 빈 리스트.
+        [{"keyword": str, "section": str}] 리스트. LLM 미사용/오류 시 빈 리스트.
     """
-    ollama_host = os.getenv("OLLAMA_HOST")
-    if not ollama_host:
-        return []
-
     sections = []
     if requirements_raw and requirements_raw.strip():
         sections.append(f"[자격요건]\n{requirements_raw.strip()}")
@@ -68,52 +63,38 @@ def llm_extract_keywords(
     prompt = _EXTRACT_PROMPT.format(content=content)
 
     try:
-        url = f"{ollama_host.rstrip('/')}/api/generate"
-        payload = json.dumps({
-            "model": DEFAULT_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.2,
-                "num_predict": 1000,
-            },
-        }).encode("utf-8")
+        raw_response = llm_generate(prompt, timeout=DEFAULT_TIMEOUT).strip()
+        if not raw_response:
+            return []
 
-        req = Request(url, data=payload, headers={"Content-Type": "application/json"})
-        with urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            raw_response = result.get("response", "").strip()
-            if not raw_response:
-                return []
+        # Parse JSON from response (handle markdown code blocks)
+        json_str = raw_response
+        if "```" in json_str:
+            # Extract JSON from code block
+            start = json_str.find("[")
+            end = json_str.rfind("]") + 1
+            if start >= 0 and end > start:
+                json_str = json_str[start:end]
 
-            # Parse JSON from response (handle markdown code blocks)
-            json_str = raw_response
-            if "```" in json_str:
-                # Extract JSON from code block
-                start = json_str.find("[")
-                end = json_str.rfind("]") + 1
-                if start >= 0 and end > start:
-                    json_str = json_str[start:end]
+        keywords = json.loads(json_str)
+        if not isinstance(keywords, list):
+            return []
 
-            keywords = json.loads(json_str)
-            if not isinstance(keywords, list):
-                return []
+        # Validate and clean
+        cleaned = []
+        for item in keywords:
+            if isinstance(item, dict) and "keyword" in item:
+                cleaned.append({
+                    "keyword": str(item["keyword"]).strip(),
+                    "section": str(item.get("section", "")).strip(),
+                })
 
-            # Validate and clean
-            cleaned = []
-            for item in keywords:
-                if isinstance(item, dict) and "keyword" in item:
-                    cleaned.append({
-                        "keyword": str(item["keyword"]).strip(),
-                        "section": str(item.get("section", "")).strip(),
-                    })
+        logger.info("LLM 키워드 추출 완료: %d개", len(cleaned))
+        return cleaned
 
-            logger.info("LLM 키워드 추출 완료: %d개", len(cleaned))
-            return cleaned
-
-    except (URLError, OSError, json.JSONDecodeError, KeyError) as exc:
-        logger.warning("Ollama 키워드 추출 실패: %s", exc)
+    except (json.JSONDecodeError, KeyError) as exc:
+        logger.warning("LLM 키워드 추출 실패: %s", exc)
         return []
     except Exception as exc:
-        logger.warning("Ollama 키워드 추출 예외: %s", exc)
+        logger.warning("LLM 키워드 추출 예외: %s", exc)
         return []

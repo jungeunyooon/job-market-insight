@@ -1,6 +1,6 @@
 """LLM-based requirement normalization.
 
-Uses Ollama to normalize different wordings of the same job requirement
+Uses LLM to normalize different wordings of the same job requirement
 into canonical forms for better trend analysis.
 
 Example:
@@ -13,12 +13,11 @@ from __future__ import annotations
 import json
 import logging
 import os
-from urllib.error import URLError
-from urllib.request import Request, urlopen
+
+from nlp.llm_client import generate as llm_generate
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 DEFAULT_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "30"))
 
 _NORMALIZE_PROMPT = """다음 채용 공고의 자격요건/우대사항 텍스트를 분석하여, 각 요구사항을 정규화된 형태로 변환해주세요.
@@ -43,16 +42,12 @@ def llm_normalize_requirements(
     preferred_raw: str | None = None,
     max_content_chars: int = 3000,
 ) -> list[dict]:
-    """Ollama API를 호출하여 자격요건/우대사항을 정규화한다.
+    """LLM API를 호출하여 자격요건/우대사항을 정규화한다.
 
     Returns:
         [{"original": str, "normalized": str, "category": str}] 리스트.
-        Ollama 미사용/오류 시 빈 리스트.
+        LLM 미사용/오류 시 빈 리스트.
     """
-    ollama_host = os.getenv("OLLAMA_HOST")
-    if not ollama_host:
-        return []
-
     sections = []
     if requirements_raw and requirements_raw.strip():
         sections.append(f"[자격요건]\n{requirements_raw.strip()}")
@@ -69,52 +64,38 @@ def llm_normalize_requirements(
     prompt = _NORMALIZE_PROMPT.format(content=content)
 
     try:
-        url = f"{ollama_host.rstrip('/')}/api/generate"
-        payload = json.dumps({
-            "model": DEFAULT_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.2,
-                "num_predict": 1500,
-            },
-        }).encode("utf-8")
+        raw_response = llm_generate(prompt, timeout=DEFAULT_TIMEOUT).strip()
+        if not raw_response:
+            return []
 
-        req = Request(url, data=payload, headers={"Content-Type": "application/json"})
-        with urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            raw_response = result.get("response", "").strip()
-            if not raw_response:
-                return []
+        # Parse JSON from response (handle markdown code blocks)
+        json_str = raw_response
+        if "```" in json_str:
+            start = json_str.find("[")
+            end = json_str.rfind("]") + 1
+            if start >= 0 and end > start:
+                json_str = json_str[start:end]
 
-            # Parse JSON from response (handle markdown code blocks)
-            json_str = raw_response
-            if "```" in json_str:
-                start = json_str.find("[")
-                end = json_str.rfind("]") + 1
-                if start >= 0 and end > start:
-                    json_str = json_str[start:end]
+        normalized = json.loads(json_str)
+        if not isinstance(normalized, list):
+            return []
 
-            normalized = json.loads(json_str)
-            if not isinstance(normalized, list):
-                return []
+        # Validate and clean
+        cleaned = []
+        for item in normalized:
+            if isinstance(item, dict) and "original" in item and "normalized" in item:
+                cleaned.append({
+                    "original": str(item["original"]).strip(),
+                    "normalized": str(item["normalized"]).strip(),
+                    "category": str(item.get("category", "technical")).strip(),
+                })
 
-            # Validate and clean
-            cleaned = []
-            for item in normalized:
-                if isinstance(item, dict) and "original" in item and "normalized" in item:
-                    cleaned.append({
-                        "original": str(item["original"]).strip(),
-                        "normalized": str(item["normalized"]).strip(),
-                        "category": str(item.get("category", "technical")).strip(),
-                    })
+        logger.info("LLM 요구사항 정규화 완료: %d개", len(cleaned))
+        return cleaned
 
-            logger.info("LLM 요구사항 정규화 완료: %d개", len(cleaned))
-            return cleaned
-
-    except (URLError, OSError, json.JSONDecodeError, KeyError) as exc:
-        logger.warning("Ollama 정규화 실패: %s", exc)
+    except (json.JSONDecodeError, KeyError) as exc:
+        logger.warning("LLM 정규화 실패: %s", exc)
         return []
     except Exception as exc:
-        logger.warning("Ollama 정규화 예외: %s", exc)
+        logger.warning("LLM 정규화 예외: %s", exc)
         return []
