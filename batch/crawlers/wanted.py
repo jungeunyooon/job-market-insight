@@ -30,7 +30,7 @@ class WantedAPICrawler(BaseCrawler):
     def __init__(
         self,
         search_keywords: list[str] | None = None,
-        max_pages: int = 5,
+        max_pages: int = 10,
         page_size: int = 20,
     ) -> None:
         self._keywords = search_keywords or ["백엔드", "서버 개발자", "Backend Engineer", "프론트엔드", "Frontend Engineer", "풀스택", "Fullstack Developer"]
@@ -94,7 +94,6 @@ class WantedAPICrawler(BaseCrawler):
                 f"{WANTED_API_BASE}/jobs",
                 params={
                     "country": "kr",
-                    "tag_type_ids": "518",  # 서버 개발자 카테고리
                     "locations": "all",
                     "years": "-1",
                     "limit": self._page_size,

@@ -6,46 +6,72 @@ import os
 import time
 import urllib.request
 import urllib.error
+from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
-# Rate limiting for Gemini free tier (15 RPM)
-_last_gemini_call: float = 0.0
-_GEMINI_MIN_INTERVAL = float(os.getenv("GEMINI_MIN_INTERVAL", "8.0"))  # seconds between calls
+# Rate limiting for Gemini free tier (15 RPM per key)
+_GEMINI_MIN_INTERVAL = float(os.getenv("GEMINI_MIN_INTERVAL", "8.0"))  # seconds per key
 _GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "3"))
+
+# Per-key state for round-robin rotation
+_gemini_keys: List[str] = []
+_last_call_per_key: Dict[str, float] = {}
+_key_index: int = 0
+_keys_logged: bool = False
+
+
+def _init_keys() -> None:
+    """Parse GEMINI_API_KEY env var (comma-separated) into _gemini_keys."""
+    global _gemini_keys, _keys_logged
+    raw = os.getenv("GEMINI_API_KEY", "")
+    _gemini_keys = [k.strip() for k in raw.split(",") if k.strip()]
+    if _gemini_keys and not _keys_logged:
+        logger.info("Gemini API keys available: %d (effective interval: %.1fs)",
+                    len(_gemini_keys), _GEMINI_MIN_INTERVAL / len(_gemini_keys))
+        _keys_logged = True
+
+
+def _next_key() -> str:
+    """Return the next API key in round-robin order."""
+    global _key_index
+    if not _gemini_keys:
+        _init_keys()
+    key = _gemini_keys[_key_index % len(_gemini_keys)]
+    _key_index += 1
+    return key
+
+
+def _throttle_gemini(key: str) -> None:
+    """Enforce minimum interval for a specific API key."""
+    now = time.monotonic()
+    last = _last_call_per_key.get(key, 0.0)
+    elapsed = now - last
+    if elapsed < _GEMINI_MIN_INTERVAL:
+        sleep_time = _GEMINI_MIN_INTERVAL - elapsed
+        logger.debug("Gemini throttle (key ...%s): %.1fs 대기", key[-4:], sleep_time)
+        time.sleep(sleep_time)
+    _last_call_per_key[key] = time.monotonic()
 
 
 def generate(prompt: str, timeout: int = 30) -> str:
     """Send prompt to LLM. Tries Gemini first, then Ollama."""
-    gemini_api_key = os.getenv("GEMINI_API_KEY", "")
+    _init_keys()
     ollama_host = os.getenv("OLLAMA_HOST", "")
 
-    if gemini_api_key:
-        return _gemini_generate(prompt, timeout, gemini_api_key, ollama_host)
+    if _gemini_keys:
+        return _gemini_generate(prompt, timeout, ollama_host)
     if ollama_host:
         return _ollama_generate(prompt, timeout, ollama_host)
     return ""
 
 
-def _throttle_gemini():
-    """Enforce minimum interval between Gemini API calls."""
-    global _last_gemini_call
-    now = time.monotonic()
-    elapsed = now - _last_gemini_call
-    if elapsed < _GEMINI_MIN_INTERVAL:
-        sleep_time = _GEMINI_MIN_INTERVAL - elapsed
-        logger.debug("Gemini throttle: %.1fs 대기", sleep_time)
-        time.sleep(sleep_time)
-    _last_gemini_call = time.monotonic()
-
-
-def _gemini_generate(prompt: str, timeout: int, api_key: str, ollama_host: str) -> str:
-    """Call Gemini REST API with retry on 429."""
+def _gemini_generate(prompt: str, timeout: int, ollama_host: str) -> str:
+    """Call Gemini REST API with retry on 429, rotating API keys round-robin."""
     gemini_model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}"
     body = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -55,8 +81,13 @@ def _gemini_generate(prompt: str, timeout: int, api_key: str, ollama_host: str) 
     }).encode("utf-8")
 
     for attempt in range(_GEMINI_MAX_RETRIES):
-        _throttle_gemini()
+        api_key = _next_key()
+        _throttle_gemini(api_key)
 
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{gemini_model}:generateContent?key={api_key}"
+        )
         req = urllib.request.Request(
             url,
             data=body,

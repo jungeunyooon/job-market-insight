@@ -15,6 +15,10 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_API_KEY2: ${{ secrets.GEMINI_API_KEY2 }}
+          GEMINI_API_KEY3: ${{ secrets.GEMINI_API_KEY3 }}
+          GEMINI_API_KEY4: ${{ secrets.GEMINI_API_KEY4 }}
+          GEMINI_API_KEY5: ${{ secrets.GEMINI_API_KEY5 }}
           SARAMIN_API_KEY: ${{ secrets.SARAMIN_API_KEY }}
           WORK24_API_KEY: ${{ secrets.WORK24_API_KEY }}
         with:
@@ -23,7 +27,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           command_timeout: 10m
-          envs: GEMINI_API_KEY,SARAMIN_API_KEY,WORK24_API_KEY
+          envs: GEMINI_API_KEY,GEMINI_API_KEY2,GEMINI_API_KEY3,GEMINI_API_KEY4,GEMINI_API_KEY5,SARAMIN_API_KEY,WORK24_API_KEY
           script: |
             export GIT_SSH_COMMAND="ssh -F ~/.ssh/config"
             cd ~/job-market-insight
@@ -31,9 +35,16 @@ jobs:
             # Pull latest changes
             git pull origin main
 
+            # Combine Gemini keys (comma-separated for round-robin rotation)
+            GEMINI_KEYS="${GEMINI_API_KEY}"
+            [ -n "${GEMINI_API_KEY2}" ] && GEMINI_KEYS="${GEMINI_KEYS},${GEMINI_API_KEY2}"
+            [ -n "${GEMINI_API_KEY3}" ] && GEMINI_KEYS="${GEMINI_KEYS},${GEMINI_API_KEY3}"
+            [ -n "${GEMINI_API_KEY4}" ] && GEMINI_KEYS="${GEMINI_KEYS},${GEMINI_API_KEY4}"
+            [ -n "${GEMINI_API_KEY5}" ] && GEMINI_KEYS="${GEMINI_KEYS},${GEMINI_API_KEY5}"
+
             # Write secrets to .env (docker compose reads this)
             cat > .env <<ENVEOF
-            GEMINI_API_KEY=${GEMINI_API_KEY}
+            GEMINI_API_KEY=${GEMINI_KEYS}
             SARAMIN_API_KEY=${SARAMIN_API_KEY}
             WORK24_API_KEY=${WORK24_API_KEY}
             ENVEOF
