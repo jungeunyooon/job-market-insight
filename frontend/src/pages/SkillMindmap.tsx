@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import {
   Treemap, ResponsiveContainer, Tooltip,
 } from 'recharts'
 import { Network, Hash, TrendingUp } from 'lucide-react'
+import ForceGraph2D from 'react-force-graph-2d'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { ErrorState } from '@/components/ui/ErrorState'
@@ -16,6 +17,16 @@ const COLORS = [
   '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac',
   '#6baed6', '#fd8d3c', '#74c476', '#9e9ac8', '#e377c2',
 ]
+
+const GROUP_COLORS: Record<string, string> = {
+  'Language': '#4e79a7',
+  'Framework': '#f28e2b',
+  'Database': '#e15759',
+  'DevOps': '#76b7b2',
+  'Cloud': '#59a14f',
+  'Tool': '#edc948',
+  'Library': '#b07aa1',
+}
 
 interface TreemapNode {
   [key: string]: string | number
@@ -42,6 +53,7 @@ function TreemapContent(props: { x: number; y: number; width: number; height: nu
 
 export function SkillMindmap() {
   const [selectedSkill, setSelectedSkill] = useState<string>('')
+  const graphRef = useRef<InstanceType<typeof ForceGraph2D>>(null)
 
   const { data: rankingData, loading: rankingLoading } = useApi(
     () => getSkillRanking({ topN: 50 }),
@@ -72,6 +84,89 @@ export function SkillMindmap() {
       fill: COLORS[i % COLORS.length],
     }))
   }, [data])
+
+  // Force-directed graph data
+  const graphData = useMemo(() => {
+    if (!data?.allKeywords || !data.skillName) return { nodes: [], links: [] }
+
+    const centerNode = {
+      id: data.skillName,
+      group: 'center',
+      val: 30,
+      label: data.skillName,
+    }
+
+    // Determine group for each keyword
+    const getGroupColor = (kw: { keyword: string }, idx: number) => {
+      if (data.keywordGroups) {
+        for (const [group, keywords] of Object.entries(data.keywordGroups)) {
+          if (keywords.some(k => k.keyword === kw.keyword)) {
+            return GROUP_COLORS[group] || COLORS[idx % COLORS.length]
+          }
+        }
+      }
+      return COLORS[idx % COLORS.length]
+    }
+
+    const getGroup = (kw: { keyword: string }) => {
+      if (data.keywordGroups) {
+        for (const [group, keywords] of Object.entries(data.keywordGroups)) {
+          if (keywords.some(k => k.keyword === kw.keyword)) {
+            return group
+          }
+        }
+      }
+      return 'Other'
+    }
+
+    const keywordNodes = data.allKeywords.map((kw, i) => ({
+      id: kw.keyword,
+      group: getGroup(kw),
+      val: Math.max(4, Math.sqrt(kw.postingCount) * 3),
+      label: `${kw.keyword} (${kw.postingCount}건, ${kw.percentage.toFixed(1)}%)`,
+      color: getGroupColor(kw, i),
+      count: kw.postingCount,
+    }))
+
+    const links = data.allKeywords.map((kw) => ({
+      source: data.skillName,
+      target: kw.keyword,
+    }))
+
+    return {
+      nodes: [centerNode, ...keywordNodes],
+      links,
+    }
+  }, [data])
+
+  const nodeCanvasObject = useCallback((node: Record<string, unknown>, ctx: CanvasRenderingContext2D, globalScale: number) => {
+    const label = node.id as string
+    const val = (node.val as number) || 5
+    const radius = Math.sqrt(val) * 2
+    const isCenter = (node.group as string) === 'center'
+    const fontSize = isCenter ? 14 / globalScale : Math.max(10 / globalScale, 3)
+
+    // Draw circle
+    ctx.beginPath()
+    ctx.arc(node.x as number, node.y as number, radius, 0, 2 * Math.PI)
+    ctx.fillStyle = isCenter ? '#2f81f7' : (node.color as string) || '#8b949e'
+    ctx.fill()
+
+    if (isCenter) {
+      ctx.strokeStyle = '#58a6ff'
+      ctx.lineWidth = 2 / globalScale
+      ctx.stroke()
+    }
+
+    // Draw label
+    if (globalScale > 0.6 || isCenter) {
+      ctx.font = `${isCenter ? 'bold ' : ''}${fontSize}px JetBrains Mono, monospace`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#e6edf3'
+      ctx.fillText(label, node.x as number, (node.y as number) + radius + fontSize + 1)
+    }
+  }, [])
 
   if (rankingLoading) return <LoadingState />
 
@@ -129,6 +224,44 @@ export function SkillMindmap() {
               value={data.category}
             />
           </div>
+
+          {/* Force-Directed Graph */}
+          {graphData.nodes.length > 0 && (
+            <div className="mb-6 rounded-xl border border-border-default bg-bg-surface p-6">
+              <h3 className="mb-4 text-lg font-semibold">키워드 관계 그래프</h3>
+              <div className="overflow-hidden rounded-lg" style={{ backgroundColor: '#0d1117' }}>
+                <ForceGraph2D
+                  ref={graphRef}
+                  graphData={graphData}
+                  width={800}
+                  height={450}
+                  nodeCanvasObject={nodeCanvasObject}
+                  nodeLabel="label"
+                  nodeVal="val"
+                  linkColor={() => 'rgba(139, 148, 158, 0.2)'}
+                  linkWidth={1}
+                  cooldownTicks={100}
+                  d3AlphaDecay={0.05}
+                  d3VelocityDecay={0.3}
+                  backgroundColor="#0d1117"
+                />
+              </div>
+              {/* Graph legend */}
+              {data.keywordGroups && Object.keys(data.keywordGroups).length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-3">
+                  {Object.entries(GROUP_COLORS).map(([group, color]) => {
+                    if (!data.keywordGroups?.[group]) return null
+                    return (
+                      <div key={group} className="flex items-center gap-1.5 text-xs text-text-muted">
+                        <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+                        {group}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Treemap */}
           {treemapData.length > 0 && (

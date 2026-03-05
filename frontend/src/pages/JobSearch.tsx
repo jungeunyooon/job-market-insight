@@ -124,11 +124,17 @@ export function JobSearch() {
                 {data.content.map((posting) => (
                   <tr key={posting.id} className="border-b border-border-muted transition-colors hover:bg-bg-elevated group">
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <span className="font-medium">{posting.title}</span>
                         {posting.sourceUrl && (
-                          <a href={posting.sourceUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-3 w-3 text-text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+                          <a
+                            href={posting.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 rounded-md border border-border-default px-2 py-0.5 text-xs text-accent-blue transition-colors hover:bg-accent-blue hover:text-white"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            원문
                           </a>
                         )}
                       </div>

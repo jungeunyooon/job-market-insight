@@ -37,6 +37,8 @@ export function CompanyProfile() {
   if (loading) return <LoadingState />
   if (error || !company) return <ErrorState message={error || '데이터를 불러올 수 없습니다'} onRetry={refetch} />
 
+  const hasData = company.totalPostings > 0 && company.topSkills.length > 0
+
   const pieData = Object.entries(company.positionBreakdown).map(([key, value]) => ({
     name: POSITION_LABELS[key] || key,
     value,
@@ -82,66 +84,82 @@ export function CompanyProfile() {
         <KpiCard label="Top 스킬" value={company.topSkills[0]?.skill || '-'} />
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* Tech Stack Chart */}
-        <div className="col-span-2 rounded-xl border border-border-default bg-bg-surface p-6">
-          <h3 className="mb-4 text-lg font-semibold">{company.companyName} 기술 스택</h3>
-          <ResponsiveContainer width="100%" height={Math.max(300, company.topSkills.length * 45)}>
-            <BarChart data={chartData} layout="vertical" margin={{ left: 80, right: 30, top: 5, bottom: 5 }}>
-              <CartesianGrid {...chart.gridProps} />
-              <XAxis
-                type="number"
-                domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
-                {...chart.xAxisProps}
-              />
-              <YAxis type="category" dataKey="skill" width={80} {...chart.yAxisProps} />
-              <Tooltip
-                formatter={(value: number | undefined) => [`${value ?? 0}%`, '출현율']}
-                contentStyle={chart.tooltipStyle}
-              />
-              <Bar dataKey="percentage" fill="#3fb950" radius={[0, 6, 6, 0]} animationDuration={800} />
-            </BarChart>
-          </ResponsiveContainer>
+      {!hasData && (
+        <div className="rounded-xl border border-border-default bg-bg-surface p-10 text-center">
+          <Building2 className="mx-auto mb-3 h-10 w-10 text-text-subtle" />
+          <h3 className="text-lg font-semibold text-text-primary">아직 수집된 공고 데이터가 없습니다</h3>
+          <p className="mt-2 text-sm text-text-muted">
+            {KNOWN_COMPANIES.find(c => c.key === selectedCompanyName)?.label || selectedCompanyName}의
+            채용공고를 크롤링하면 기술 스택 분석이 표시됩니다.
+          </p>
+          <p className="mt-1 text-xs text-text-subtle">
+            배치 크롤러(<code className="rounded bg-bg-elevated px-1.5 py-0.5 font-mono">python main.py</code>)를 실행하여 데이터를 수집해 주세요.
+          </p>
         </div>
+      )}
 
-        {/* Position Breakdown Pie */}
-        <div className="rounded-xl border border-border-default bg-bg-surface p-6">
-          <h3 className="mb-4 text-lg font-semibold">포지션 분포</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={3}
-                dataKey="value"
-                animationDuration={800}
-              >
-                {pieData.map((_, idx) => (
-                  <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={chart.tooltipStyle} />
-              <Legend
-                formatter={(value: string) => <span style={{ color: chart.axisLabel, fontSize: 13 }}>{value}</span>}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+      {hasData && (
+        <div className="grid grid-cols-3 gap-6">
+          {/* Tech Stack Chart */}
+          <div className="col-span-2 rounded-xl border border-border-default bg-bg-surface p-6">
+            <h3 className="mb-4 text-lg font-semibold">{company.companyName} 기술 스택</h3>
+            <ResponsiveContainer width="100%" height={Math.max(300, company.topSkills.length * 45)}>
+              <BarChart data={chartData} layout="vertical" margin={{ left: 80, right: 30, top: 5, bottom: 5 }}>
+                <CartesianGrid {...chart.gridProps} />
+                <XAxis
+                  type="number"
+                  domain={[0, 100]}
+                  tickFormatter={(v) => `${v}%`}
+                  {...chart.xAxisProps}
+                />
+                <YAxis type="category" dataKey="skill" width={80} {...chart.yAxisProps} />
+                <Tooltip
+                  formatter={(value: number | undefined) => [`${value ?? 0}%`, '출현율']}
+                  contentStyle={chart.tooltipStyle}
+                />
+                <Bar dataKey="percentage" fill="#3fb950" radius={[0, 6, 6, 0]} animationDuration={800} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
 
-          {/* Breakdown list */}
-          <div className="mt-4 space-y-2">
-            {Object.entries(company.positionBreakdown).map(([pos, count]) => (
-              <div key={pos} className="flex items-center justify-between text-sm">
-                <Badge>{POSITION_LABELS[pos] || pos}</Badge>
-                <span className="font-mono text-text-muted">{count}건</span>
-              </div>
-            ))}
+          {/* Position Breakdown Pie */}
+          <div className="rounded-xl border border-border-default bg-bg-surface p-6">
+            <h3 className="mb-4 text-lg font-semibold">포지션 분포</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={3}
+                  dataKey="value"
+                  animationDuration={800}
+                >
+                  {pieData.map((_, idx) => (
+                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={chart.tooltipStyle} />
+                <Legend
+                  formatter={(value: string) => <span style={{ color: chart.axisLabel, fontSize: 13 }}>{value}</span>}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            {/* Breakdown list */}
+            <div className="mt-4 space-y-2">
+              {Object.entries(company.positionBreakdown).map(([pos, count]) => (
+                <div key={pos} className="flex items-center justify-between text-sm">
+                  <Badge>{POSITION_LABELS[pos] || pos}</Badge>
+                  <span className="font-mono text-text-muted">{count}건</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </motion.div>
   )
 }

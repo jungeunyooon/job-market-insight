@@ -22,15 +22,13 @@ const PRIORITY_COLORS: Record<string, string> = {
   MAINTAINED: '#3fb950',
 }
 
-const STATUS_CYCLE: SkillStatus[] = ['NOT_OWNED', 'LEARNING', 'OWNED']
+const STATUS_CYCLE: SkillStatus[] = ['NOT_OWNED', 'OWNED']
 const STATUS_LABELS: Record<string, string> = {
   OWNED: '보유',
-  LEARNING: '학습 중',
   NOT_OWNED: '미보유',
 }
 const STATUS_COLORS: Record<string, string> = {
   OWNED: '#3fb950',
-  LEARNING: '#2f81f7',
   NOT_OWNED: '#8b949e',
 }
 
@@ -116,7 +114,6 @@ export function GapAnalysis() {
   const loading = gapLoading && hasSelectedSkills
 
   const ownedCount = mySkills.filter(s => s.status === 'OWNED').length
-  const learningCount = mySkills.filter(s => s.status === 'LEARNING').length
 
   const radialData = [{ name: '매칭률', value: matchPercentage, fill: chart.accentBlue }]
 
@@ -187,16 +184,14 @@ export function GapAnalysis() {
               >
                 {skill}
                 {isActive && (
-                  <span className="ml-1.5 text-[10px] opacity-80">
-                    {status === 'OWNED' ? '보유' : '학습중'}
-                  </span>
+                  <span className="ml-1.5 text-[10px] opacity-80">보유</span>
                 )}
               </button>
             )
           })}
         </div>
         <p className="mt-2 text-xs text-text-subtle">
-          보유 {ownedCount}개 · 학습 중 {learningCount}개 · 선택한 스킬은 브라우저에 저장됩니다
+          보유 {ownedCount}개 · 선택한 스킬은 브라우저에 저장됩니다
         </p>
       </div>
 
@@ -205,7 +200,7 @@ export function GapAnalysis() {
         <div className="rounded-xl border border-border-default bg-bg-surface p-8 text-center">
           <p className="text-sm text-text-primary">위에서 보유하거나 학습 중인 스킬을 선택해주세요.</p>
           <p className="mt-2 text-xs text-text-muted">
-            스킬을 클릭하면 미보유 → 학습 중 → 보유 순으로 변경됩니다.
+            스킬을 클릭하면 미보유 ↔ 보유로 토글됩니다.
           </p>
         </div>
       )}
@@ -250,12 +245,6 @@ export function GapAnalysis() {
                     {gaps.filter((g) => g.userStatus === 'OWNED').length}
                   </div>
                   <div className="text-xs text-text-muted">보유</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-mono text-lg font-bold text-accent-blue">
-                    {gaps.filter((g) => g.userStatus === 'LEARNING').length}
-                  </div>
-                  <div className="text-xs text-text-muted">학습 중</div>
                 </div>
                 <div className="text-center">
                   <div className="font-mono text-lg font-bold text-accent-red">

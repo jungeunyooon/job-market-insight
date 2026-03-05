@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
+  BarChart, Bar, Cell,
 } from 'recharts'
 import { BookOpen, ExternalLink } from 'lucide-react'
 import { KpiCard } from '@/components/ui/KpiCard'
@@ -10,7 +11,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useChartStyles } from '@/hooks/useChartStyles'
 import { useApi } from '@/hooks/useApi'
-import { getYearlySkillTrend, getBlogPosts } from '@/api/endpoints'
+import { getYearlySkillTrend, getBlogPosts, getSkillMindmap } from '@/api/endpoints'
 
 const CHART_COLORS = [
   '#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948',
@@ -36,6 +37,15 @@ export function BlogTrend() {
   }, [data])
 
   const [activeSkills, setActiveSkills] = useState<Set<string> | null>(null)
+  const [selectedSkillForKeywords, setSelectedSkillForKeywords] = useState<string | null>(null)
+
+  // Fetch keyword mindmap for the selected skill
+  const { data: mindmapData, loading: mindmapLoading } = useApi(
+    () => selectedSkillForKeywords
+      ? getSkillMindmap(selectedSkillForKeywords)
+      : Promise.resolve(null as never),
+    [selectedSkillForKeywords],
+  )
 
   // Initialize activeSkills once data is loaded
   const currentActive = activeSkills ?? new Set(allSkills)
@@ -82,6 +92,21 @@ export function BlogTrend() {
     }
   }
 
+  function handleSkillChipClick(skill: string) {
+    toggleSkill(skill)
+    setSelectedSkillForKeywords(skill)
+  }
+
+  // Keyword bar data from mindmap
+  const keywordBarData = useMemo(() => {
+    if (!mindmapData?.allKeywords) return []
+    return mindmapData.allKeywords.slice(0, 15).map((kw, i) => ({
+      keyword: kw.keyword,
+      count: kw.postingCount,
+      fill: CHART_COLORS[i % CHART_COLORS.length],
+    }))
+  }, [mindmapData])
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -101,7 +126,7 @@ export function BlogTrend() {
         <KpiCard label="분석 연도" value={`${yearsCount}년`} />
       </div>
 
-      {/* Skill filter */}
+      {/* Skill filter — chip toggle */}
       <div className="mb-6 rounded-xl border border-border-default bg-bg-surface px-5 py-4">
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm font-medium text-text-primary">스킬 필터</span>
@@ -109,20 +134,70 @@ export function BlogTrend() {
             {currentActive.size === allSkills.length ? '전체 해제' : '전체 선택'}
           </button>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           {allSkills.map((skill, idx) => {
             const color = CHART_COLORS[idx % CHART_COLORS.length]
-            const checked = currentActive.has(skill)
+            const active = currentActive.has(skill)
+            const isKeywordSelected = selectedSkillForKeywords === skill
             return (
-              <label key={skill} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors hover:bg-bg-elevated">
-                <input type="checkbox" checked={checked} onChange={() => toggleSkill(skill)} className="hidden" />
-                <span className="inline-block h-3 w-3 rounded-sm transition-opacity" style={{ backgroundColor: color, opacity: checked ? 1 : 0.25 }} />
-                <span className="font-mono" style={{ color: checked ? color : undefined }}>{skill}</span>
-              </label>
+              <button
+                key={skill}
+                onClick={() => handleSkillChipClick(skill)}
+                className={`cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-medium font-mono transition-all ${
+                  active
+                    ? 'text-white shadow-sm'
+                    : 'bg-bg-elevated text-text-muted hover:text-text-primary'
+                } ${isKeywordSelected ? 'ring-2 ring-offset-1 ring-offset-bg-base' : ''}`}
+                style={active ? { backgroundColor: color, ...(isKeywordSelected ? { ringColor: color } : {}) } : {}}
+              >
+                {skill}
+              </button>
             )
           })}
         </div>
+        <p className="mt-2 text-xs text-text-subtle">
+          클릭하여 차트 필터링 + 키워드 빈도 확인
+        </p>
       </div>
+
+      {/* Keyword bar chart for selected skill */}
+      {selectedSkillForKeywords && (
+        <div className="mb-6 rounded-xl border border-border-default bg-bg-surface p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold">
+              <span className="text-accent-blue">{selectedSkillForKeywords}</span> 연관 키워드 빈도
+            </h3>
+            <button
+              onClick={() => setSelectedSkillForKeywords(null)}
+              className="text-xs text-text-muted hover:text-text-primary"
+            >
+              닫기
+            </button>
+          </div>
+          {mindmapLoading && <LoadingState />}
+          {!mindmapLoading && keywordBarData.length > 0 && (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={keywordBarData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+                <CartesianGrid {...chart.gridProps} />
+                <XAxis dataKey="keyword" {...chart.xAxisProps} angle={-35} textAnchor="end" height={80} />
+                <YAxis {...chart.xAxisProps} />
+                <Tooltip
+                  contentStyle={chart.tooltipStyle}
+                  formatter={(value: number | undefined) => [`${value ?? 0}건`, '공고 수']}
+                />
+                <Bar dataKey="count" radius={[4, 4, 0, 0]} animationDuration={600}>
+                  {keywordBarData.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+          {!mindmapLoading && keywordBarData.length === 0 && (
+            <p className="py-8 text-center text-sm text-text-muted">키워드 데이터가 없습니다</p>
+          )}
+        </div>
+      )}
 
       {/* Line Chart */}
       <div className="rounded-xl border border-border-default bg-bg-surface p-6">
@@ -217,7 +292,7 @@ export function BlogTrend() {
                     >
                       {post.title}
                     </a>
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-accent-blue opacity-60 transition-opacity group-hover:opacity-100" />
                   </div>
                   {post.summary && (
                     <p className="mt-1 line-clamp-2 text-sm text-text-muted">{post.summary}</p>
