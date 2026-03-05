@@ -27,12 +27,26 @@ class WantedAPICrawler(BaseCrawler):
     Rate limited to 1 req/sec as per crawling rules.
     """
 
+    # 직군별 카테고리 ID → 서로 다른 결과 풀
+    DEFAULT_TAG_TYPE_IDS = {
+        "서버/백엔드": "518",
+        "프론트엔드": "669",
+        "풀스택": "672",
+        "데이터 엔지니어": "655",
+        "DevOps/인프라": "660",
+        "머신러닝/AI": "1634",
+        "모바일(Android)": "677",
+        "모바일(iOS)": "678",
+        "QA/테스트": "676",
+        "보안": "671",
+    }
+
     def __init__(
         self,
-        search_keywords: list[str] | None = None,
+        tag_type_ids: dict[str, str] | None = None,
         page_size: int = 20,
     ) -> None:
-        self._keywords = search_keywords or ["백엔드", "서버 개발자", "Backend Engineer", "프론트엔드", "Frontend Engineer", "풀스택", "Fullstack Developer"]
+        self._tag_type_ids = tag_type_ids or self.DEFAULT_TAG_TYPE_IDS
         self._page_size = page_size
         self._session = requests.Session()
         self._session.headers.update({
@@ -56,13 +70,14 @@ class WantedAPICrawler(BaseCrawler):
         seen_ids: set[int] = set()
         job_ids: list[int] = []
 
-        # Step 1: Collect unique job IDs from all keywords (exhaust all pages)
-        MAX_PAGES_SAFETY = 50  # 안전장치: 최대 1000개/키워드
-        for keyword in self._keywords:
+        # Step 1: Collect unique job IDs from all categories (exhaust all pages)
+        MAX_PAGES_SAFETY = 100  # 안전장치: 최대 2000개/카테고리
+        for cat_name, tag_id in self._tag_type_ids.items():
             page = 0
+            cat_new = 0
             while page < MAX_PAGES_SAFETY:
                 offset = page * self._page_size
-                jobs = self._fetch_job_list(keyword=keyword, offset=offset)
+                jobs = self._fetch_job_list(tag_type_id=tag_id, offset=offset)
                 if not jobs:
                     break
 
@@ -73,9 +88,7 @@ class WantedAPICrawler(BaseCrawler):
                         seen_ids.add(job_id)
                         job_ids.append(job_id)
                         new_in_page += 1
-
-                logger.info("keyword='%s' page=%d fetched=%d new=%d total=%d",
-                            keyword, page, len(jobs), new_in_page, len(job_ids))
+                        cat_new += 1
 
                 # Stop if last page or no new results (API recycling)
                 if len(jobs) < self._page_size or new_in_page == 0:
@@ -84,7 +97,10 @@ class WantedAPICrawler(BaseCrawler):
                 page += 1
                 time.sleep(self.get_rate_limit_delay())
 
-        logger.info(f"Found {len(job_ids)} unique jobs from {len(self._keywords)} keywords")
+            logger.info("category='%s' (tag=%s) pages=%d new=%d total=%d",
+                        cat_name, tag_id, page + 1, cat_new, len(job_ids))
+
+        logger.info(f"Found {len(job_ids)} unique jobs from {len(self._tag_type_ids)} categories")
 
         # Step 2: Fetch details for each job
         postings: list[RawJobPosting] = []
@@ -97,18 +113,18 @@ class WantedAPICrawler(BaseCrawler):
         logger.info(f"Successfully fetched {len(postings)} job details")
         return postings
 
-    def _fetch_job_list(self, keyword: str, offset: int = 0) -> list[dict]:
-        """Fetch job listing page from Wanted API."""
+    def _fetch_job_list(self, tag_type_id: str, offset: int = 0) -> list[dict]:
+        """Fetch job listing page from Wanted API by category."""
         try:
             resp = self._session.get(
                 f"{WANTED_API_BASE}/jobs",
                 params={
                     "country": "kr",
+                    "tag_type_ids": tag_type_id,
                     "locations": "all",
                     "years": "-1",
                     "limit": self._page_size,
                     "offset": offset,
-                    "search": keyword,
                 },
                 timeout=10,
             )
@@ -126,7 +142,7 @@ class WantedAPICrawler(BaseCrawler):
             return data.get("data", [])
 
         except requests.RequestException as e:
-            logger.error(f"Request failed for keyword '{keyword}': {e}")
+            logger.error(f"Request failed for tag_type_id '{tag_type_id}': {e}")
             return []
 
     def _fetch_job_detail(self, job_id: int) -> dict[str, Any] | None:
