@@ -4,6 +4,8 @@ import type {
   PostingResponse,
   PostingDetailResponse,
   SkillRankingResponse,
+  SkillKeywordResponse,
+  SkillMindmapResponse,
   CompanyProfileResponse,
   PositionComparisonResponse,
   GapAnalysisRequest,
@@ -64,6 +66,15 @@ export function getPositionComparison(positions: PositionType[], topN = 20) {
 
 export function analyzeGap(request: GapAnalysisRequest, positionType: PositionType = 'BACKEND') {
   return post<GapAnalysisResponse>(`/analysis/gap?positionType=${positionType}`, request)
+}
+
+// --- Skill Keywords & Mindmap ---
+export function getSkillKeywords(skillId: number) {
+  return get<SkillKeywordResponse>(`/skills/${skillId}/keywords`)
+}
+
+export function getSkillMindmap(skillName: string) {
+  return get<SkillMindmapResponse>('/analysis/skill-mindmap', { skill: skillName })
 }
 
 // --- Trends ---

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, Building2, GitCompare, Target, Search, Activity, Sun, Moon, Zap, BookOpen } from 'lucide-react'
+import { BarChart3, Building2, GitCompare, Target, Search, Activity, Sun, Moon, Zap, BookOpen, Network } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 
 const navItems = [
@@ -10,6 +10,7 @@ const navItems = [
   { to: '/search', icon: Search, label: '공고 검색' },
   { to: '/buzz', icon: Zap, label: 'Buzz vs 채용' },
   { to: '/blog-trend', icon: BookOpen, label: '블로그 트렌드' },
+  { to: '/mindmap', icon: Network, label: '스킬 마인드맵' },
 ]
 
 export function Sidebar() {

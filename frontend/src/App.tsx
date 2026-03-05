@@ -7,6 +7,7 @@ import { GapAnalysis } from '@/pages/GapAnalysis'
 import { JobSearch } from '@/pages/JobSearch'
 import { BuzzVsHiring } from '@/pages/BuzzVsHiring'
 import { BlogTrend } from '@/pages/BlogTrend'
+import { SkillMindmap } from '@/pages/SkillMindmap'
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
           <Route path="search" element={<JobSearch />} />
           <Route path="buzz" element={<BuzzVsHiring />} />
           <Route path="blog-trend" element={<BlogTrend />} />
+          <Route path="mindmap" element={<SkillMindmap />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -179,6 +179,35 @@ export interface SkillCompanyDistributionResponse {
   companies: { company: string; postCount: number }[]
 }
 
+// --- Skill Keyword ---
+export interface KeywordFrequency {
+  keyword: string
+  frequency: number
+}
+
+export interface SkillKeywordResponse {
+  skillName: string
+  category: string
+  keywords: KeywordFrequency[]
+  totalPostings: number
+}
+
+// --- Skill Mindmap ---
+export interface KeywordNode {
+  keyword: string
+  postingCount: number
+  percentage: number
+}
+
+export interface SkillMindmapResponse {
+  skillName: string
+  nameKo: string
+  category: string
+  allKeywords: KeywordNode[]
+  keywordGroups: Record<string, KeywordNode[]>
+  totalPostingMentions: number
+}
+
 // --- Pagination (Spring Page) ---
 export interface Page<T> {
   content: T[]
