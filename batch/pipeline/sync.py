@@ -4,9 +4,11 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import psycopg2
 from psycopg2.extras import Json
@@ -14,13 +16,17 @@ from psycopg2.extras import Json
 from crawlers.base import RawJobPosting
 from crawlers.tech_blog import BlogPost
 from crawlers.trend.base import TrendPost
+from nlp.llm_summarizer import llm_summarize
 from nlp.skill_matcher import SkillMatcher
+from nlp.summarizer import extractive_summary
 
 logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SKILLS_SEED_PATH = ROOT_DIR / "data" / "skills_seed.json"
 COMPANIES_SEED_PATH = ROOT_DIR / "data" / "companies_seed.json"
+
+CrawlStatusLiteral = Literal["SUCCESS", "PARTIAL", "FAILED"]
 
 
 @dataclass
@@ -47,9 +53,59 @@ class DevPulseSync:
         self._alias_to_company = self._build_company_alias_map(self._seed_companies)
 
         self._skill_matcher = SkillMatcher(self._seed_skills)
+        self._skill_keywords: dict[str, list[str]] = {
+            str(s.get("name", "")).strip().lower(): [str(k).strip() for k in s.get("keywords", []) if str(k).strip()]
+            for s in self._seed_skills
+            if str(s.get("name", "")).strip()
+        }
 
     def close(self) -> None:
         self._conn.close()
+
+    def log_crawl_execution(
+        self,
+        source_type: str,
+        source_name: str,
+        status: CrawlStatusLiteral,
+        stats: SyncStats,
+        started_at: datetime,
+        finished_at: datetime,
+        error_message: str | None = None,
+    ) -> None:
+        """crawl_log 테이블에 크롤링 실행 결과를 기록한다."""
+        duration_ms = int((finished_at - started_at).total_seconds() * 1000)
+        items_duplicate = stats.crawled - stats.inserted - stats.updated - stats.failed
+        if items_duplicate < 0:
+            items_duplicate = 0
+        try:
+            with self._conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO crawl_log (
+                        source_type, source_name, status,
+                        items_collected, items_new, items_duplicate,
+                        error_message, duration_ms, started_at, finished_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        source_type,
+                        source_name,
+                        status,
+                        stats.crawled,
+                        stats.inserted,
+                        items_duplicate,
+                        error_message,
+                        duration_ms,
+                        started_at,
+                        finished_at,
+                    ),
+                )
+                self._conn.commit()
+        except Exception:
+            logger.exception(
+                "crawl_log 기록 실패: source_type=%s source_name=%s", source_type, source_name
+            )
 
     def _load_json(self, path: Path) -> list[dict]:
         if not path.exists():
@@ -78,15 +134,17 @@ class DevPulseSync:
                 if not name:
                     continue
                 aliases = [str(a).strip() for a in skill.get("aliases", []) if str(a).strip()]
+                keywords = [str(k).strip() for k in skill.get("keywords", []) if str(k).strip()]
                 cur.execute(
                     """
-                    INSERT INTO skill (name, name_ko, category, aliases, source_scope)
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO skill (name, name_ko, category, aliases, source_scope, keywords)
+                    VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (name) DO UPDATE
                     SET name_ko = COALESCE(skill.name_ko, EXCLUDED.name_ko),
                         category = COALESCE(skill.category, EXCLUDED.category),
                         aliases = CASE WHEN jsonb_array_length(skill.aliases) > 0 THEN skill.aliases ELSE EXCLUDED.aliases END,
-                        source_scope = skill.source_scope
+                        source_scope = skill.source_scope,
+                        keywords = CASE WHEN jsonb_array_length(EXCLUDED.keywords) > 0 THEN EXCLUDED.keywords ELSE skill.keywords END
                     """,
                     (
                         name,
@@ -94,6 +152,7 @@ class DevPulseSync:
                         str(skill.get("category", "unknown")),
                         Json(aliases),
                         str(skill.get("source_scope", "BOTH")),
+                        Json(keywords),
                     ),
                 )
 
@@ -132,8 +191,10 @@ class DevPulseSync:
 
             self._conn.commit()
 
-    def sync_job_postings(self, postings: list[RawJobPosting]) -> SyncStats:
+    def sync_job_postings(self, postings: list[RawJobPosting], source_name: str = "job_postings") -> SyncStats:
+        started_at = datetime.now(timezone.utc)
         stats = SyncStats(crawled=len(postings))
+        error_message: str | None = None
         with self._conn.cursor() as cur:
             for post in postings:
                 try:
@@ -145,30 +206,39 @@ class DevPulseSync:
                         stats.updated += 1
 
                     skills = self._extract_job_skills(post)
-                    for skill_name in skills:
-                        skill_id = self._ensure_skill(cur, skill_name)
+                    for skill_info in skills:
+                        skill_id = self._ensure_skill(cur, skill_info["name"])
+                        matched_keywords = self._extract_matched_keywords(skill_info["name"], post.description_raw)
                         cur.execute(
                             """
-                            INSERT INTO posting_skill (posting_id, skill_id, is_required, is_preferred, created_at)
-                            VALUES (%s, %s, false, false, NOW())
-                            ON CONFLICT (posting_id, skill_id) DO NOTHING
+                            INSERT INTO posting_skill (posting_id, skill_id, is_required, is_preferred, matched_keywords, created_at)
+                            VALUES (%s, %s, %s, %s, %s, NOW())
+                            ON CONFLICT (posting_id, skill_id) DO UPDATE SET matched_keywords = EXCLUDED.matched_keywords
                             """,
-                            (posting_id, skill_id),
+                            (posting_id, skill_id, skill_info["is_required"], skill_info["is_preferred"], Json(matched_keywords)),
                         )
-                except Exception:
+                except Exception as exc:
                     stats.failed += 1
+                    error_message = str(exc)
                     logger.exception("Failed to sync job posting: %s / %s", post.company_name, post.title)
 
             self._conn.commit()
+
+        finished_at = datetime.now(timezone.utc)
+        status: CrawlStatusLiteral = "SUCCESS" if stats.failed == 0 else ("PARTIAL" if stats.inserted + stats.updated > 0 else "FAILED")
+        self.log_crawl_execution("JOB_POSTING", source_name, status, stats, started_at, finished_at, error_message)
         return stats
 
-    def sync_blog_posts(self, posts: list[BlogPost]) -> SyncStats:
+    def sync_blog_posts(self, posts: list[BlogPost], source_name: str = "tech_blog") -> SyncStats:
+        started_at = datetime.now(timezone.utc)
         stats = SyncStats(crawled=len(posts))
+        error_message: str | None = None
         with self._conn.cursor() as cur:
             for post in posts:
                 try:
                     company_id = self._upsert_company(cur, post.company_name)
-                    blog_id, inserted = self._upsert_blog_post(cur, company_id, post)
+                    summary = llm_summarize(post.content_raw) or extractive_summary(post.content_raw, max_sentences=3)
+                    blog_id, inserted = self._upsert_blog_post(cur, company_id, post, summary=summary)
                     if inserted:
                         stats.inserted += 1
                     else:
@@ -187,15 +257,22 @@ class DevPulseSync:
                             """,
                             (blog_id, skill_id),
                         )
-                except Exception:
+                except Exception as exc:
                     stats.failed += 1
+                    error_message = str(exc)
                     logger.exception("Failed to sync blog post: %s", post.url)
 
             self._conn.commit()
+
+        finished_at = datetime.now(timezone.utc)
+        status: CrawlStatusLiteral = "SUCCESS" if stats.failed == 0 else ("PARTIAL" if stats.inserted + stats.updated > 0 else "FAILED")
+        self.log_crawl_execution("BLOG", source_name, status, stats, started_at, finished_at, error_message)
         return stats
 
-    def sync_trend_posts(self, posts: list[TrendPost]) -> SyncStats:
+    def sync_trend_posts(self, posts: list[TrendPost], source_name: str = "trend") -> SyncStats:
+        started_at = datetime.now(timezone.utc)
         stats = SyncStats(crawled=len(posts))
+        error_message: str | None = None
         with self._conn.cursor() as cur:
             for post in posts:
                 try:
@@ -216,11 +293,16 @@ class DevPulseSync:
                             """,
                             (trend_id, skill_id),
                         )
-                except Exception:
+                except Exception as exc:
                     stats.failed += 1
+                    error_message = str(exc)
                     logger.exception("Failed to sync trend post: %s", post.external_id)
 
             self._conn.commit()
+
+        finished_at = datetime.now(timezone.utc)
+        status: CrawlStatusLiteral = "SUCCESS" if stats.failed == 0 else ("PARTIAL" if stats.inserted + stats.updated > 0 else "FAILED")
+        self.log_crawl_execution("TREND", source_name, status, stats, started_at, finished_at, error_message)
         return stats
 
     def _canonical_company_seed(self, raw_name: str) -> dict | None:
@@ -255,15 +337,31 @@ class DevPulseSync:
         return re.sub(r"\s+", " ", (title or "").strip().lower())
 
     def _infer_position_type(self, title: str, description: str) -> str:
-        text = f"{title}\n{description}".lower()
-        product_keywords = ["product", "pm", "기획", "프로덕트"]
-        fde_keywords = ["frontend", "front-end", "react", "vue", "ui", "ux", "프론트"]
+        title_lower = title.lower()
 
-        if any(k in text for k in product_keywords):
-            return "PRODUCT"
-        if any(k in text for k in fde_keywords):
+        # Title-based classification (high confidence)
+        backend_title = ["backend", "back-end", "back end", "서버", "백엔드", "server", "spring", "java developer", "python developer", "go developer"]
+        fde_title = ["frontend", "front-end", "front end", "프론트엔드", "프론트", "react developer", "vue developer", "ui developer", "ux engineer"]
+        product_title = ["product manager", "product owner", "기획자", "프로덕트", "pm"]
+
+        if any(k in title_lower for k in backend_title):
+            return "BACKEND"
+        if any(k in title_lower for k in fde_title):
             return "FDE"
-        return "BACKEND"
+        if any(k in title_lower for k in product_title):
+            return "PRODUCT"
+
+        # Fallback: check description but with stricter matching
+        desc_lower = description.lower()
+        backend_desc = ["backend", "back-end", "서버 개발", "백엔드", "spring boot", "api 개발"]
+        fde_desc = ["frontend", "front-end", "프론트엔드", "react 개발", "vue 개발", "ui/ux"]
+
+        if any(k in desc_lower for k in backend_desc):
+            return "BACKEND"
+        if any(k in desc_lower for k in fde_desc):
+            return "FDE"
+
+        return "BACKEND"  # default to backend
 
     def _upsert_job_posting(self, cur, company_id: int, post: RawJobPosting) -> tuple[int, bool]:
         title = (post.title or "").strip() or "(untitled)"
@@ -341,7 +439,7 @@ class DevPulseSync:
         )
         return int(cur.fetchone()[0]), True
 
-    def _upsert_blog_post(self, cur, company_id: int, post: BlogPost) -> tuple[int, bool]:
+    def _upsert_blog_post(self, cur, company_id: int, post: BlogPost, summary: str = "") -> tuple[int, bool]:
         url = (post.url or "").strip()
         if not url:
             raise ValueError("blog post url is empty")
@@ -357,6 +455,7 @@ class DevPulseSync:
                     title = %s,
                     content_raw = %s,
                     content_cleaned = %s,
+                    summary = %s,
                     published_at = %s,
                     published_year = %s,
                     crawled_at = NOW()
@@ -367,6 +466,7 @@ class DevPulseSync:
                     post.title,
                     post.content_raw,
                     post.content_raw,
+                    summary,
                     post.published_at,
                     post.published_year,
                     blog_id,
@@ -378,9 +478,9 @@ class DevPulseSync:
             """
             INSERT INTO tech_blog_post (
                 company_id, title, url, content_raw, content_cleaned,
-                published_at, published_year, crawled_at
+                summary, published_at, published_year, crawled_at
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
             RETURNING id
             """,
             (
@@ -389,6 +489,7 @@ class DevPulseSync:
                 url,
                 post.content_raw,
                 post.content_raw,
+                summary,
                 post.published_at,
                 post.published_year,
             ),
@@ -461,15 +562,56 @@ class DevPulseSync:
         )
         return int(cur.fetchone()[0])
 
-    def _extract_job_skills(self, post: RawJobPosting) -> list[str]:
-        extracted: set[str] = set()
+    def _classify_skill_requirement(self, skill_name: str, description: str) -> tuple[bool, bool]:
+        """스킬이 필수/우대 섹션 중 어디에 등장하는지 판단한다."""
+        required_headers = ["자격요건", "필수", "요구사항", "필수 조건", "지원자격", "requirements", "required", "qualifications", "must have"]
+        preferred_headers = ["우대", "우대사항", "우대 조건", "플러스", "preferred", "nice to have", "bonus", "plus"]
+
+        # Split description into sections by common headers
+        header_pattern = "|".join(re.escape(h) for h in required_headers + preferred_headers)
+        sections = re.split(rf"({header_pattern})", description, flags=re.IGNORECASE)
+
+        current_section: str | None = None
+        skill_lower = skill_name.lower()
+
+        for chunk in sections:
+            chunk_lower = chunk.lower().strip()
+            if any(chunk_lower == h.lower() for h in required_headers):
+                current_section = "required"
+            elif any(chunk_lower == h.lower() for h in preferred_headers):
+                current_section = "preferred"
+            elif skill_lower in chunk_lower:
+                if current_section == "preferred":
+                    return False, True
+                else:
+                    # required section or ambiguous → default to required
+                    return True, False
+
+        # skill found but no section detected → default to required
+        if skill_lower in description.lower():
+            return True, False
+
+        return True, False
+
+    def _extract_matched_keywords(self, skill_name: str, description: str) -> list[str]:
+        """스킬의 세부 키워드 중 description에 등장하는 것을 반환한다."""
+        keywords = self._skill_keywords.get(skill_name.strip().lower(), [])
+        desc_lower = description.lower()
+        return [kw for kw in keywords if kw.lower() in desc_lower]
+
+    def _extract_job_skills(self, post: RawJobPosting) -> list[dict]:
+        extracted: dict[str, dict] = {}
         for tag in post.tags:
             cleaned = str(tag).strip()
-            if cleaned:
-                extracted.add(cleaned)
+            if cleaned and cleaned not in extracted:
+                is_required, is_preferred = self._classify_skill_requirement(cleaned, post.description_raw)
+                extracted[cleaned] = {"name": cleaned, "is_required": is_required, "is_preferred": is_preferred}
 
         text = f"{post.title}\n{post.description_raw}"
         for matched in self._skill_matcher.match(text, scope="JOB_POSTING"):
-            extracted.add(matched.skill_name)
+            name = matched.skill_name
+            if name not in extracted:
+                is_required, is_preferred = self._classify_skill_requirement(name, post.description_raw)
+                extracted[name] = {"name": name, "is_required": is_required, "is_preferred": is_preferred}
 
-        return sorted(extracted)
+        return sorted(extracted.values(), key=lambda x: x["name"])
