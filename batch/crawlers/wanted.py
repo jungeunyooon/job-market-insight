@@ -30,11 +30,9 @@ class WantedAPICrawler(BaseCrawler):
     def __init__(
         self,
         search_keywords: list[str] | None = None,
-        max_pages: int = 10,
         page_size: int = 20,
     ) -> None:
         self._keywords = search_keywords or ["백엔드", "서버 개발자", "Backend Engineer", "프론트엔드", "Frontend Engineer", "풀스택", "Fullstack Developer"]
-        self._max_pages = max_pages
         self._page_size = page_size
         self._session = requests.Session()
         self._session.headers.update({
@@ -58,20 +56,28 @@ class WantedAPICrawler(BaseCrawler):
         seen_ids: set[int] = set()
         job_ids: list[int] = []
 
-        # Step 1: Collect unique job IDs from all keywords
+        # Step 1: Collect unique job IDs from all keywords (exhaust all pages)
         for keyword in self._keywords:
-            for page in range(self._max_pages):
+            page = 0
+            while True:
                 offset = page * self._page_size
                 jobs = self._fetch_job_list(keyword=keyword, offset=offset)
                 if not jobs:
                     break
 
+                new_in_page = 0
                 for job in jobs:
                     job_id = job.get("id")
                     if job_id and job_id not in seen_ids:
                         seen_ids.add(job_id)
                         job_ids.append(job_id)
+                        new_in_page += 1
 
+                # Stop if page returned fewer than page_size (last page)
+                if len(jobs) < self._page_size:
+                    break
+
+                page += 1
                 time.sleep(self.get_rate_limit_delay())
 
         logger.info(f"Found {len(job_ids)} unique jobs from {len(self._keywords)} keywords")
