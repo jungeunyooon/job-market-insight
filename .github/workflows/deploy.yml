@@ -43,16 +43,14 @@ jobs:
             [ -n "${GEMINI_API_KEY5}" ] && GEMINI_KEYS="${GEMINI_KEYS},${GEMINI_API_KEY5}"
 
             # Write secrets to .env (docker compose reads this)
-            cat > .env <<ENVEOF
-            GEMINI_API_KEY=${GEMINI_KEYS}
-            SARAMIN_API_KEY=${SARAMIN_API_KEY}
-            WORK24_API_KEY=${WORK24_API_KEY}
-            ENVEOF
-            sed -i 's/^            //' .env
+            echo "GEMINI_API_KEY=${GEMINI_KEYS}" > .env
+            echo "SARAMIN_API_KEY=${SARAMIN_API_KEY}" >> .env
+            echo "WORK24_API_KEY=${WORK24_API_KEY}" >> .env
+            echo "Keys in .env: $(grep -c '=' .env) lines"
 
-            # Build and restart services (scheduler uses batch Dockerfile)
+            # Build and restart services (force-recreate to pick up new .env)
             docker compose build api frontend scheduler
-            docker compose up -d api frontend scheduler
+            docker compose up -d --force-recreate api frontend scheduler
 
             # Wait for API container healthcheck
             echo "Waiting for API to be healthy..."
